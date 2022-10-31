@@ -76,9 +76,9 @@ def diagaver(Y):
         
     -------------------------------------------------------------------------
     References:
-    [1] Bógalo, J., Poncela, P., and Senra, E. "Circulant Singular Spectrum
-        Analysis: A new automated procedure for signal extraction". Signal
-        Processing. Vol. 179, 2021, in progress.
+    [1] Bógalo, J., Poncela, P., & Senra, E. (2021). 
+        "Circulant singular spectrum analysis: a new automated procedure for signal extraction". 
+         Signal Processing, 179, 107824.
         https://doi.org/10.1016/j.sigpro.2020.107824.
     -------------------------------------------------------------------------    
 
@@ -154,9 +154,9 @@ def extend(x,H):
         
     -------------------------------------------------------------------------
     References:
-    [1] Bógalo, J., Poncela, P., and Senra, E. "Circulant Singular Spectrum
-        Analysis: A new automated procedure for signal extraction". Signal
-        Processing. Vol. 179, 2021, in progress.
+    [1] Bógalo, J., Poncela, P., & Senra, E. (2021). 
+        "Circulant singular spectrum analysis: a new automated procedure for signal extraction". 
+         Signal Processing, 179, 107824.
         https://doi.org/10.1016/j.sigpro.2020.107824.
     -------------------------------------------------------------------------     
 
@@ -293,9 +293,9 @@ def group(Z,psd,I,season_length = 1, cycle_length = [1.5,8], include_noise = Tru
 
     -------------------------------------------------------------------------
     References:
-    [1] Bógalo, J., Poncela, P., and Senra, E. "Circulant Singular Spectrum
-        Analysis: A new automated procedure for signal extraction". Signal
-        Processing. Vol. 179, 2021, in progress.
+    [1] Bógalo, J., Poncela, P., & Senra, E. (2021). 
+        "Circulant singular spectrum analysis: a new automated procedure for signal extraction". 
+         Signal Processing, 179, 107824.
         https://doi.org/10.1016/j.sigpro.2020.107824.
     -------------------------------------------------------------------------
 
@@ -506,9 +506,9 @@ def cissa(x,L,H = 0):
     
      -------------------------------------------------------------------------
      References:
-     [1] Bógalo, J., Poncela, P., and Senra, E. "Circulant Singular Spectrum
-         Analysis: A new automated procedure for signal extraction". Signal
-         Processing. Vol. 179, 2021, in progress.
+     [1] Bógalo, J., Poncela, P., & Senra, E. (2021). 
+         "Circulant singular spectrum analysis: a new automated procedure for signal extraction". 
+          Signal Processing, 179, 107824.
          https://doi.org/10.1016/j.sigpro.2020.107824.
      -------------------------------------------------------------------------
 
