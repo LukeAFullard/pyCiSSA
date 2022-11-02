@@ -737,7 +737,7 @@ def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['valu
                          1) ['<',threshold]  -- classifies all values below the threshold as outliers
                          2) ['>',threshold]  -- classifies all values above the threshold as outliers
                          3) ['<>',[low_threshold, hi_threshold]]  -- classifies all values not between the two thresholds as outliers
-                         4) ['k',multiplier]  -- classifies all values above the multiplier of the median average deviation as outliers.
+                         4) ['k',multiplier]  -- classifies all values above the multiplier of the median average deviation as outliers. IMPORTANT NOTE: Does not converge very well/at all if there are consecutive missing values.
     errors : list, optional
         DESCRIPTION: The default is ['value', 1]. How to define the convergence of the outlier fitting method.
                      Current options are:
