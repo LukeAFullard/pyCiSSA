@@ -691,3 +691,249 @@ def cissa(x,L,H = 0):
 ###############################################################################
 ###############################################################################
 ###############################################################################
+def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['value', 1],H=0,max_iter = 10,components_to_remove = []):
+    '''
+    OUT_CiSSA - Correction of outliers/missing data with CiSSA. 
+    See: 
+        https://doi.org/10.1016/j.econlet.2021.110206 
+        https://github.com/jbogalo/CiSSA
+    
+    This function uses CiSSA to correct a series for outliers in
+    time that, in addition, obtains the series adjusted for seasonality.
+    
+    Syntax:     [x_ca, x_casa] = cissa_out(x,L,H,s,k,error)
+    
+    Conversion from Matlab, https://github.com/jbogalo/CiSSA
+
+    Parameters
+    ----------
+    x : numpy array (or convertable to np array)
+        DESCRIPTION: Columm vector containing the time series original data.
+    L : int
+        DESCRIPTION: Window length.
+    I : multiple
+        DESCRIPTION: Four options:  (note, can be built from the build_groupings function)
+            1) A positive integer. It is the number of data per year in
+            time series. The function automatically computes the
+            trend (oscillations with period greater than 8 years), the
+            business cycle (oscillations with period between 8 & 1.5 years)
+            and seasonality.
+            2) A dictionary. Each value contains a numpy row vector with the desired
+            values of k to be included in a group, k=1,2,...,L/2. The function
+            computes the reconstructed components for these groups.
+            3) A number between 0 & 1. This number represents the accumulated
+            share of the psd achieved with the sum of the share associated to
+            the largest eigenvalues. The function computes the original
+            reconstructed time series as the sum of these components.
+            4) A number between -1 & 0. It is a percentile (in positive) of
+            the psd. The function computes the original reconstructed time
+            series as the sum of the reconstructed componentes by frequency
+            whose psd is greater that this percentile.
+    data_per_unit_period : int
+        DESCRIPTION: How many data points per season period. If season is annual, season_length is number of data points in a year. Only used for case 1.
+    outliers : list, optional
+        DESCRIPTION: The default is ['<',-1]. How to find outliers and the threshold value. 
+                     Current options are:
+                         1) ['<',threshold]  -- classifies all values below the threshold as outliers
+                         2) ['>',threshold]  -- classifies all values above the threshold as outliers
+                         3) ['<>',[low_threshold, hi_threshold]]  -- classifies all values not between the two thresholds as outliers
+                         4) ['k',multiplier]  -- classifies all values above the multiplier of the median average deviation as outliers.
+    errors : list, optional
+        DESCRIPTION: The default is ['value', 1]. How to define the convergence of the outlier fitting method.
+                     Current options are:
+                         1) ['value', threshold] -- error must be less than the threshold value to signify convergence
+                         2) ['min', multiplier] -- error must be less than the multiplier*(minimum non-outlier value of the data) to signify convergence
+                         2) ['med', multiplier] -- error must be less than the multiplier*(median non-outlier value of the data) to signify convergence
+    H : int, optional
+        DESCRIPTION: The default is 0. Related to the characteristics of the time series.
+                       H=0 Autoregressive extension (default). It is indicated for stationary
+                           and stochastic trend time series as well.
+                       H=1 Mirroring. It can be used with stationary time series and works
+                           well for AM-FM signals.
+                       H=2 No extension. It is suitable for deterministic time series.
+    max_iter : int, optional
+        DESCRIPTION: The default is 10. Max number of iterations before abandoning fitting attempt.
+    components_to_remove : list, optional
+        DESCRIPTION: The default is []. List of named components to remove from the final signal. Used to return a signal with, for example, seasonality, noise, ENSO removed.
+
+    Raises
+    ------
+    ValueError
+        DESCRIPTION: Raise an error if inputs are of the incorrect type.
+
+    Returns
+    -------
+    x_ca : numpy array
+        DESCRIPTION: Numpy array with corrected series of outliers/missing values.
+    x_casa : numpy array
+        DESCRIPTION: Numpy array with components from components_to_remove removed from the series x_ca.
+    rc : dict    
+        DESCRIPTION: The full Circulant Singular Spectrum Analysis components of x_ca.    
+
+    
+     -------------------------------------------------------------------------
+     References:
+     [1] Bógalo, J., Poncela, P., & Senra, E. (2021). 
+         "Circulant singular spectrum analysis: a new automated procedure for signal extraction". 
+          Signal Processing, 179, 107824.
+         https://doi.org/10.1016/j.sigpro.2020.107824.
+     [2] Bógalo, J., Llada, M., Poncela, P., & Senra, E. (2022). 
+         "Seasonality in COVID-19 times". 
+          Economics Letters, 211, 110206.
+          https://doi.org/10.1016/j.econlet.2021.110206
+     -------------------------------------------------------------------------
+    '''
+    import numpy as np
+    from scipy.signal import lfilter
+    from scipy import stats
+    from pycissa import cissa, group  #DELETE THIS LATER
+    
+    ###########################################################################
+    # 0) type checking
+    ###########################################################################    
+    #check H,L is an integer
+    if not type(H) == int:
+        raise('Input parameter "H" should be an integer')
+    if not type(L) == int:
+        raise('Input parameter "L" should be an integer')    
+    
+    #check x is a numpy array
+    if not type(x) is np.ndarray:
+        try: 
+            x = np.array(x)
+            x = x.reshape(len(x),1)
+        except: raise ValueError(f'Input "x" is not a numpy array, nor can be converted to one.')
+    myshape = x.shape
+    if len(myshape) == 2:
+        rows, cols = myshape[0],myshape[1]
+    else:
+        try: 
+            x = x.reshape(len(x),1)
+            rows, cols = x.shape
+        except:
+            raise ValueError(f'Input "x" should be a column vector (i.e. only contain a single column). The size of x is ({myshape})')
+
+    #check outliers, errors are length 2 lists
+    if not type(outliers) is list:
+        raise('Input parameter "outliers" should be a length 2 list')
+    if not len(outliers) == 2:   
+        raise('Input parameter "outliers" should be a length 2 list')
+    if not type(errors) is list:
+        raise('Input parameter "errors" should be a length 2 list')   
+    if not len(errors) == 2:   
+        raise('Input parameter "errors" should be a length 2 list')    
+    ###########################################################################
+    
+    ###########################################################################
+    # Defining the outliers type
+    if outliers[0] == 'k':
+        k = outliers[1]
+    elif outliers[0] == '<':
+        l_t = outliers[1]
+    elif outliers[0] == '>':
+        g_t = outliers[1]
+    elif outliers[0] == '<>': #here we have to be between two predefined limits
+        if not len(outliers[1]) ==2:
+            raise('If input parameter outliers == <> then the second entry in the list should be another length 2 list') 
+        l_t = outliers[1][0]  
+        g_t = outliers[1][1]    
+    else:
+        raise ValueError(f'Outlier type: {outliers[0]} not recognised')
+    ###########################################################################
+    # Defining the errors type IF of type value
+    if errors[0] == 'value':
+        error = errors[1]    
+    ###########################################################################
+    
+    
+    # % stationary filter
+    Theta = np.convolve(np.array([1, -1]),np.concatenate((np.concatenate((np.array([1]), np.zeros(data_per_unit_period-1))), np.array([-1]))))
+    ini = len(Theta)
+
+    # % initial allocation
+    x_old = x.copy()
+    x_new = x.copy()
+    x_ca = x.copy()
+
+    ###########################################################################
+    # % Outlier Correction
+    iter_i = 1
+    while iter_i>0:
+        
+        #######################################################################
+        # % Outlier detection
+        if outliers[0] == 'k':
+            # % Serial Filtering
+            if np.min(x_new)>0:
+                lx = np.log(x_new)
+            else:
+                lx = x_new.copy()
+
+            dlx = lfilter(Theta,1,lx.reshape(1,len(lx)))
+            se = stats.median_abs_deviation(dlx[0,ini-1:])
+            me = np.median(dlx[0,ini-1:]);
+            y = np.append(me*np.ones((ini-1,1)), dlx[0,ini-1:])
+            out = np.abs(y-me)>k*se
+        elif outliers[0] == '<':
+            out = x_new < l_t
+        elif outliers[0] == '>':
+            out = x_new > g_t
+        elif outliers[0] == '<>':
+            out_0 = x_new > g_t
+            out_1 = x_new < l_t
+            out = np.logical_or(out_0, out_1)
+        #######################################################################
+
+        # % Initial value
+        mu = np.median(x_new[~out])
+        
+        #######################################################################
+        #check if error is min, median
+        if errors[0] == 'min':
+            error = np.abs(errors[1]*np.min(np.abs(x_new[~out])))  #this take the error as a scalar multiple (usually > 1) of the min value in the (non-outlier) series
+        if errors[0] == 'med':
+            error = np.abs(errors[1]*mu)  #this take the error as a scalar multiple (usually between 0 and 1) of the median value in the (non-outlier) series    
+        #######################################################################
+
+        x_new[out] = mu
+
+        # % Convergence
+        while np.max(np.abs(x_old-x_new))>error:
+            x_old = x_new.copy()
+            Z, psd = cissa(x_new,L,H)
+            rc, _, _ = group(Z,psd,0.95)
+            temp_array = np.zeros(x.shape)
+            for key_i in rc.keys(): #iterate through the components to rebuild the signal
+                temp_array += rc[key_i]
+
+            updated_values = None
+           
+            # updated_values = np.sum(temp_array[out,:],axis=1)
+            updated_values = temp_array[out]
+            x_new[out] = updated_values.reshape(x_new[out].shape)
+            print(f'error: {np.max(np.abs(x_old-x_new))} vs target error: {error}')    
+
+        if np.max(np.abs(x_ca-x_new))>error:
+            iter_i += 1
+        else:
+            iter_i = 0
+        print(f'iteration: {iter_i}, error: {np.max(np.abs(x_ca-x_new))} vs target error: {error}')    
+        
+        # % corrected series
+        x_ca = x_new.copy()
+        
+        if iter_i > max_iter:
+            print(f'We have exceeded the max number of iterations ({max_iter})')
+            return None, None
+    ###########################################################################
+
+    # % corrected and adjusted series
+    Z, psd = cissa(x_ca,L,H)
+    rc, _, _ = group(Z,psd,I)
+    x_casa = x_ca
+    for component_k in components_to_remove:
+        x_casa -= rc[component_k]
+    
+    return x_ca, x_casa, rc
+
+    
