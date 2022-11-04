@@ -27,7 +27,7 @@ def build_groupings(period_ranges,data_per_unit_period,psd,z,include_noise = Tru
     for key_p,value_p in period_ranges.items():
         myarray = None
         if value_p[0] == value_p[1]:
-            myarray = L*np.arange(1,s/2)/(value_p[0]*s)
+            myarray = L*np.arange(1,s/2+1)/(value_p[0]*s)
             kg.update({key_p  :  myarray  })
             min_k = min(min_k,min(myarray))
         else:
@@ -368,10 +368,10 @@ def group(Z,psd,I,season_length = 1, cycle_length = [1.5,8], include_noise = Tru
     # 2) PSD for frequencies <= 1/2
     ###########################################################################    
     if np.mod(L,2):
-        pzz = np.append(psd[0], 2*psd[1:F-1]) 
+        pzz = np.append(psd[0], 2*psd[1:F]) 
     else:
         pzz = np.append(
-            np.append(psd[0], 2*psd[1:F-2]),
+            np.append(psd[0], 2*psd[1:F-1]),
             psd[F-1]
             )
 
@@ -393,7 +393,7 @@ def group(Z,psd,I,season_length = 1, cycle_length = [1.5,8], include_noise = Tru
         # Inizialitation of empty dict
         kg = {}
         # Seasonality    season_length cycle_length
-        kg.update({'seasonality': L*np.arange(1,s/2)/(season_length*s)})
+        kg.update({'seasonality': L*np.arange(1,s/2+1)/(season_length*s)})
 
         # Long term cycle
         kg.update({'long term cycle': np.arange(max(2,np.floor(L/(cycle_length[1]*s)+1))-1,min(F,np.floor(L/(cycle_length[0]*s)+1)),dtype=int)})
