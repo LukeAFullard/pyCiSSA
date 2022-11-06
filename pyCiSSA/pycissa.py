@@ -691,7 +691,7 @@ def cissa(x,L,H = 0):
 ###############################################################################
 ###############################################################################
 ###############################################################################
-def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['value', 1],H=0,max_iter = 10,components_to_remove = []):
+def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['value', 1],H=0,max_iter = 10,components_to_remove = [], eigenvalue_proportion = 0.98):
     '''
     OUT_CiSSA - Correction of outliers/missing data with CiSSA. 
     See: 
@@ -755,6 +755,10 @@ def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['valu
         DESCRIPTION: The default is 10. Max number of iterations before abandoning fitting attempt.
     components_to_remove : list, optional
         DESCRIPTION: The default is []. List of named components to remove from the final signal. Used to return a signal with, for example, seasonality, noise, ENSO removed.
+    eigenvalue_proportion : float    
+        DESCRIPTION: The default is 0.98. Proportion of eigenvalue to keep. 
+                    Larger values means convergence will be slower (or possibly not converge). 
+                    Lower values will lead to almost constant (but reasonable) outlier/missing value predicitons.
 
     Raises
     ------
@@ -904,7 +908,7 @@ def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['valu
         while np.max(np.abs(x_old-x_new))>error:
             x_old = x_new.copy()
             Z, psd = cissa(x_new,L,H=H)
-            rc, _, _ = group(Z,psd,0.95)
+            rc, _, _ = group(Z,psd,eigenvalue_proportion)
             temp_array = np.zeros(x.shape)
             for key_i in rc.keys(): #iterate through the components to rebuild the signal
                 temp_array += rc[key_i]
