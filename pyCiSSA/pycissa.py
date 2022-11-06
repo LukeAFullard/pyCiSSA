@@ -424,14 +424,14 @@ def group(Z,psd,I,season_length = 1, cycle_length = [1.5,8], include_noise = Tru
         # Cumulative share in percentage
         pcum = 100*np.cumsum(psor)/sum(psd)
         # Group for the reconstructed time series
-        kg.update({1: ks[np.arange(1,len(ks[pcum<100*I])+1)]})
+        kg.update({1: ks[np.arange(0,len(ks[pcum<100*I])+1)]})
     elif opc == 4:
         # Number of groups
         G = 1
         # Inizialitation of cell array
         kg = {}
         # All k values
-        ks = np.arange(0,F-1)
+        ks = np.arange(0,F)
         # Group for the reconstructed time series
         
         kg.update({1:  ks[pzz>np.percentile(pzz,-100*I)]    })
@@ -786,7 +786,6 @@ def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['valu
     import numpy as np
     from scipy.signal import lfilter
     from scipy import stats
-    from pycissa import cissa, group  #DELETE THIS LATER
     
     ###########################################################################
     # 0) type checking
@@ -886,6 +885,8 @@ def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['valu
 
         # % Initial value
         mu = np.median(x_new[~out])
+        mumax = np.max(x_new[~out])
+        
         
         #######################################################################
         #check if error is min, median
@@ -896,11 +897,13 @@ def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['valu
         #######################################################################
 
         x_new[out] = mu
+        # x_new[out] = mumax
+        print(f'Initial guess for outliers: {x_new[out]}')
 
         # % Convergence
         while np.max(np.abs(x_old-x_new))>error:
             x_old = x_new.copy()
-            Z, psd = cissa(x_new,L,H)
+            Z, psd = cissa(x_new,L,H=H)
             rc, _, _ = group(Z,psd,0.95)
             temp_array = np.zeros(x.shape)
             for key_i in rc.keys(): #iterate through the components to rebuild the signal
@@ -911,7 +914,8 @@ def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['valu
             # updated_values = np.sum(temp_array[out,:],axis=1)
             updated_values = temp_array[out]
             x_new[out] = updated_values.reshape(x_new[out].shape)
-            print(f'error: {np.max(np.abs(x_old-x_new))} vs target error: {error}')    
+            print(f'New points: {x_new[out]}')
+            print(f'Consecutive prediction error: {np.max(np.abs(x_old-x_new))} vs target error: {error}')    
 
         if np.max(np.abs(x_ca-x_new))>error:
             iter_i += 1
