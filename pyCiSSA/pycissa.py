@@ -31,7 +31,7 @@ def build_groupings(period_ranges,data_per_unit_period,psd,z,include_noise = Tru
             kg.update({key_p  :  myarray  })
             min_k = min(min_k,min(myarray))
         else:
-            myarray = np.arange(max(2,np.floor(L/(value_p[1]*s)+1))-1,min(F,np.floor(L/(value_p[0]*s)+1)),dtype=int)
+            myarray = np.arange(max(1,np.floor(L/(value_p[1]*s)+1))-1,min(F-1,np.floor(L/(value_p[0]*s)+1)),dtype=int)
             kg.update({key_p  :  myarray  })
             min_k = min(min_k,min(myarray))
     
@@ -52,13 +52,15 @@ def build_groupings(period_ranges,data_per_unit_period,psd,z,include_noise = Tru
 ###############################################################################
 ###############################################################################
 ###############################################################################
-def diagaver(Y):
+def diagaver_single_thread(Y):
     '''
      DIAGAVER - Diagonal averaging for Singular Spectrum Analysis. https://doi.org/10.1016/j.sigpro.2020.107824
     
      This function transforms the numpy matrix, Y, into the time series,
      y, by diagonal averaging. This entails averaging the elements of Y over
      its antidiagonals.
+     
+     This function uses single threaded computing. For faster results please see the diagaver function
      
      Syntax:     y = diagaver(Y)
     
@@ -126,7 +128,104 @@ def diagaver(Y):
             y[t-1] = y[t-1]+Y[m-1,t-m]/nsum
 
     return y
+###############################################################################
+###############################################################################
+###############################################################################
+def diagaver(Y):
+    '''
+     DIAGAVER - Diagonal averaging for Singular Spectrum Analysis. https://doi.org/10.1016/j.sigpro.2020.107824
+    
+     This function transforms the numpy matrix, Y, into the time series,
+     y, by diagonal averaging. This entails averaging the elements of Y over
+     its antidiagonals.
+     
+     This function uses multi-threaded computing, by default uses all cpu cores, This may be modified at a later date. 
+     For single threaded version please see the diagaver_single_thread function
+     
+     Syntax:     y = diagaver(Y)
+    
+    Conversion from Matlab, https://github.com/jbogalo/CiSSA
 
+    Parameters
+    ----------
+    Y : numpy 2D array
+        DESCRIPTION: Input 2D numpy array/matrix
+
+    Returns
+    -------
+    y : numpy 1D array
+        DESCRIPTION: Output diagonally averaged 1D array
+        
+    -------------------------------------------------------------------------
+    References:
+    [1] Bógalo, J., Poncela, P., & Senra, E. (2021). 
+        "Circulant singular spectrum analysis: a new automated procedure for signal extraction". 
+         Signal Processing, 179, 107824.
+        https://doi.org/10.1016/j.sigpro.2020.107824.
+    -------------------------------------------------------------------------    
+
+    '''
+    import multiprocessing
+    import numpy as np
+
+    LL, NN = Y.shape
+    if LL > NN: 
+        Y = Y.transpose()
+    L = min(LL, NN)
+    N = max(LL, NN)
+    T = N + L - 1
+    y = np.zeros((T, 1))
+    
+    # Create a list of tuples to pass to the worker processes
+    tasks = [(t, Y, N, L, T) for t in range(T)]
+    
+    # Create a pool of worker processes
+    with multiprocessing.Pool() as pool:
+        # Use map to apply the function to each tuple in the list in parallel
+        results = pool.starmap(diagaver_worker, tasks)
+    
+    # Merge the results of the worker processes back into a single array
+    y = np.concatenate(results, axis=0)
+    
+    return y
+
+def diagaver_worker(t, Y, N, L, T):
+    '''
+    Calculation function for the multiprocessing version of diagaver.
+
+    Parameters
+    ----------
+    t : int
+        DESCRIPTION: integer giving the current value, t in T
+    Y : numpy array
+        DESCRIPTION: The array to average
+    N : int
+        DESCRIPTION: array size 1
+    L : int
+        DESCRIPTION: array size 2
+    T : int
+        DESCRIPTION: T = N + L - 1
+
+    Returns
+    -------
+    numpy array
+        DESCRIPTION: diagonally averaged array
+
+    '''
+    if (1 <= t + 1) & (t + 1 <= L - 1):
+        j_inf = 1
+        j_sup = t + 1
+    elif (L <= t + 1) & (t + 1 <= N):
+        j_inf = 1
+        j_sup = L
+    else:
+        j_inf = t + 1 - N + 1
+        j_sup = T - N + 1
+    nsum = j_sup - j_inf + 1
+    y_t = 0
+    for m in range(j_inf, j_sup + 1):
+        y_t += Y[m - 1, t + 1 - m] / nsum
+    return y_t.reshape(-1, 1)
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -247,7 +346,7 @@ def group(Z,psd,I,season_length = 1, cycle_length = [1.5,8], include_noise = Tru
     Z : numpy array/matrix
         DESCRIPTION: Matrix whose columns are the reconstructed components by frequency obtained with CiSSA.
     psd : numpy column vector
-        DESCRIPTION: Column vector with the estimated power spectral density at frequencies w(k)=(k-1)/L, k=1,2,...,L, obtained with CiSSA.
+        DESCRIPTION: Column vector with the estimated power spectral density at frequencies w(k)=(k)/L, k=0,2,...,L-1, obtained with CiSSA.
     I : multiple
         DESCRIPTION: 
              Four options:
@@ -257,7 +356,7 @@ def group(Z,psd,I,season_length = 1, cycle_length = [1.5,8], include_noise = Tru
              business cycle (oscillations with period between 8 & 1.5 years)
              and seasonality.
              2) A dictionary. Each value contains a numpy row vector with the desired
-             values of k to be included in a group, k=1,2,...,L/2. The function
+             values of k to be included in a group, k=0,1,2,...,L/2-1. The function
              computes the reconstructed components for these groups.
              3) A number between 0 & 1. This number represents the accumulated
              share of the psd achieved with the sum of the share associated to
@@ -396,7 +495,7 @@ def group(Z,psd,I,season_length = 1, cycle_length = [1.5,8], include_noise = Tru
         kg.update({'seasonality': L*np.arange(1,s/2+1)/(season_length*s)})
 
         # Long term cycle
-        kg.update({'long term cycle': np.arange(max(2,np.floor(L/(cycle_length[1]*s)+1))-1,min(F,np.floor(L/(cycle_length[0]*s)+1)),dtype=int)})
+        kg.update({'long term cycle': np.arange(max(1,np.floor(L/(cycle_length[1]*s)+1))-1,min(F-1,np.floor(L/(cycle_length[0]*s)+1)),dtype=int)})
         # Trend
         kg.update({'trend': np.arange(0,kg['long term cycle'][0])})
 
@@ -471,7 +570,7 @@ def group(Z,psd,I,season_length = 1, cycle_length = [1.5,8], include_noise = Tru
 ###############################################################################
 ###############################################################################
 ###############################################################################
-def cissa(x,L,H = 0):
+def cissa(x,L,H = 0,multi_thread_run = True):
     '''
      CiSSA - Circulant Singular Spectrum Analysis. https://doi.org/10.1016/j.sigpro.2020.107824
     
@@ -495,11 +594,12 @@ def cissa(x,L,H = 0):
         H=1 Mirroring. It can be used with stationary time series and works
             well for AM-FM signals.
         H=2 No extension. It is suitable for deterministic time series.
+     multi_thread_run: Defaults to true. If true multithreading is applied to calculate the diagonal averaging. If false, single thread is used.   
     
      Output arguments:
      Z:   Matrix whose columns are the reconstructed components by frequency.
      psd: Column vector with the estimated power spectral density at
-          frequencies w(k)=(k-1)/L, k=1,2,...,L. This is, the eigenvalues of
+          frequencies w(k)=(k)/L, k=0,1,2,...,L-1. This is, the eigenvalues of
           the circulant matrix of second moments.
     
      See also: group
@@ -663,7 +763,10 @@ def cissa(x,L,H = 0):
     # Elementary reconstructed series
     R = np.zeros((T+2*H,L))
     for k in range(0,L):
-        R[:,[k]] = diagaver(np.matmul(U[:,[k]],W[[k],:]))
+        if multi_thread_run:
+            R[:,[k]] = diagaver(np.matmul(U[:,[k]],W[[k],:]))
+        else:
+            R[:,[k]] = diagaver_single_thread(np.matmul(U[:,[k]],W[[k],:]))
     # ###########################################################################
     
     
@@ -691,7 +794,7 @@ def cissa(x,L,H = 0):
 ###############################################################################
 ###############################################################################
 ###############################################################################
-def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['value', 1],H=0,max_iter = 10,components_to_remove = [], eigenvalue_proportion = 0.98):
+def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['value', 1],H=0,max_iter = 10,components_to_remove = [], eigenvalue_proportion = 0.98,multi_thread_run = True):
     '''
     OUT_CiSSA - Correction of outliers/missing data with CiSSA. 
     See: 
@@ -759,7 +862,8 @@ def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['valu
         DESCRIPTION: The default is 0.98. Proportion of eigenvalue to keep. 
                     Larger values means convergence will be slower (or possibly not converge). 
                     Lower values will lead to almost constant (but reasonable) outlier/missing value predicitons.
-
+    multi_thread_run: Defaults to true. If true multithreading is applied to calculate the diagonal averaging. If false, single thread is used.   
+    
     Raises
     ------
     ValueError
@@ -907,7 +1011,7 @@ def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['valu
         # % Convergence
         while np.max(np.abs(x_old-x_new))>error:
             x_old = x_new.copy()
-            Z, psd = cissa(x_new,L,H=H)
+            Z, psd = cissa(x_new,L,H=H,multi_thread_run=multi_thread_run)
             rc, _, _ = group(Z,psd,eigenvalue_proportion)
             temp_array = np.zeros(x.shape)
             for key_i in rc.keys(): #iterate through the components to rebuild the signal
@@ -936,7 +1040,7 @@ def cissa_outlier(x,L,I,data_per_unit_period,outliers = ['<',-1],errors = ['valu
     ###########################################################################
 
     # % corrected and adjusted series
-    Z, psd = cissa(x_ca,L,H)
+    Z, psd = cissa(x_ca,L,H,multi_thread_run=multi_thread_run)
     rc, _, _ = group(Z,psd,I)
     x_casa = x_ca
     for component_k in components_to_remove:
