@@ -27,7 +27,7 @@ def build_groupings(period_ranges,data_per_unit_period,psd,z,include_noise = Tru
     for key_p,value_p in period_ranges.items():
         myarray = None
         if value_p[0] == value_p[1]:
-            myarray = L*np.arange(1,s/2+1)/(value_p[0]*s)
+            myarray = L*np.arange(1,np.floor(s/2)+1)/(value_p[0]*s)
             kg.update({key_p  :  myarray  })
             min_k = min(min_k,min(myarray))
         else:
@@ -212,6 +212,7 @@ def diagaver_worker(t, Y, N, L, T):
         DESCRIPTION: diagonally averaged array
 
     '''
+    import numpy as np
     if (1 <= t + 1) & (t + 1 <= L - 1):
         j_inf = 1
         j_sup = t + 1
@@ -223,8 +224,12 @@ def diagaver_worker(t, Y, N, L, T):
         j_sup = T - N + 1
     nsum = j_sup - j_inf + 1
     y_t = 0
-    for m in range(j_inf, j_sup + 1):
-        y_t += Y[m - 1, t + 1 - m] / nsum
+        
+    # # Create a NumPy array of indices
+    indices = np.arange(j_inf, j_sup + 1)
+    # # Use the indices to select the relevant elements from Y
+    y_t = np.sum(Y[indices - 1, t + 1 - indices] / nsum)
+    
     return y_t.reshape(-1, 1)
 ###############################################################################
 ###############################################################################
@@ -367,7 +372,7 @@ def group(Z,psd,I,season_length = 1, cycle_length = [1.5,8], include_noise = Tru
              series as the sum of the reconstructed componentes by frequency
              whose psd is greater that this percentile.
     season_length : int, optional
-        DESCRIPTION: The default is 1. How many data points per season period. If season is annual, season_length is number of data points in a year. Only used for case 1.
+        DESCRIPTION: The default is 1. Only used for case 1. when I = A positive integer. Can be modified in the case that the season is not equal to the number of data per year. For example, if a "season" is 2 years, we enter I = 365 (for days in year) and 2 for season_length because the season is 365*2, or data_per_year*season_length.
     cycle_length : list, optional
         DESCRIPTION: The default is [1.5,8]. List of longer term cycle periods. Only used for case 1.
     include_noise : bool, optional
@@ -492,7 +497,7 @@ def group(Z,psd,I,season_length = 1, cycle_length = [1.5,8], include_noise = Tru
         # Inizialitation of empty dict
         kg = {}
         # Seasonality    season_length cycle_length
-        kg.update({'seasonality': L*np.arange(1,s/2+1)/(season_length*s)})
+        kg.update({'seasonality': L*np.arange(1,np.floor(s/2)+1)/(season_length*s)})
 
         # Long term cycle
         kg.update({'long term cycle': np.arange(max(1,np.floor(L/(cycle_length[1]*s)+1))-1,min(F-1,np.floor(L/(cycle_length[0]*s)+1)),dtype=int)})
