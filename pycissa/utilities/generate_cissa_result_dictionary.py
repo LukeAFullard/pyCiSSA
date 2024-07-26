@@ -1,0 +1,50 @@
+import numpy as np
+
+###############################################################################
+###############################################################################
+
+###############################################################################
+###############################################################################
+
+###############################################################################
+###############################################################################
+
+###############################################################################
+###############################################################################
+
+###############################################################################
+###############################################################################
+
+###############################################################################
+###############################################################################
+def generate_results_dictionary(Z:     np.ndarray,
+                                psd:   np.ndarray,
+                                L:     int
+                                ):
+    from pycissa.postprocessing.grouping.grouping_functions import generate_grouping, group
+    
+    myfrequencies = generate_grouping(psd,L, trend=True)
+    rc, sh, kg, psd_sh = group(Z,psd,myfrequencies) 
+    
+    results = {}
+    for frequency_i in myfrequencies:
+        if frequency_i == 'trend':
+            results.update({
+                frequency_i                 : {
+                        'unitless period (number of timesteps)' : 0,
+                        'reconstructed_data'                    : rc[frequency_i],
+                        'percentage_share_of_psd'               : sh[frequency_i],
+                        'array_position'                        : kg[frequency_i],
+                                                }
+                })
+        else:
+            results.update({
+                frequency_i                 : {
+                        'unitless period (number of timesteps)' : 1/frequency_i,
+                        'reconstructed_data'                    : rc[frequency_i],
+                        'percentage_share_of_psd'               : sh[frequency_i],
+                        'array_position'                        : kg[frequency_i],
+                                                }
+                })
+    return {'components':results}    
+        
