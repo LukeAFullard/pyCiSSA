@@ -144,7 +144,8 @@ def plot_monte_carlo_results(plot_period:                      list,
                              signal_psd:                       list,
                              alpha:                            float,
                              significant_components_index:     list,
-                             non_significant_components_index: list) -> tuple[plt.figure,plt.axes]:
+                             non_significant_components_index: list,
+                             log_scale: bool = True) -> tuple[plt.figure,plt.axes]:
     '''
     Function to plot the surrogate psd vs the signal psd
 
@@ -175,8 +176,11 @@ def plot_monte_carlo_results(plot_period:                      list,
     fig, ax = plt.subplots()
     #surrogate results
     ax.plot(plot_period, surrogate_psd, linestyle='--',color='red', alpha=0.5, label=f'Surrogate upper tolerance interval, alpha = {alpha}')
-    ax.scatter(plot_period[significant_components_index], signal_psd[significant_components_index], color='blue', label='Significant components')
-    ax.scatter(plot_period[non_significant_components_index], signal_psd[non_significant_components_index], color='black', label='Non-significant components')
+    ax.scatter(np.array(plot_period)[significant_components_index], np.array(signal_psd)[significant_components_index], color='blue', label='Significant components')
+    ax.scatter(np.array(plot_period)[non_significant_components_index], np.array(signal_psd)[non_significant_components_index], color='black', label='Non-significant components')
+    if log_scale:
+        ax.set_yscale('log')
+        ax.set_xscale('log')
     return fig,ax
 ###############################################################################
 ###############################################################################
@@ -225,9 +229,10 @@ def check_for_significance(result:                   dict,
     result_ = copy.deepcopy(result)
     for results_key_k in result_.get('components').keys():
         allowed_larger_surrogates = K_surrogates - 1
-        key_array_position = result_.get('components').get(results_key_k).get('array_position')[0]
+        key_array_position = result_.get('components').get(results_key_k).get('array_position')
         psd_signal = pzz[key_array_position]
         
+        #find how many of the surogate data series have a larger psd than the original signal
         larger_surrogates = [x for x in surrogate_results.get(results_key_k) if x > psd_signal]
 
         #update results dictionary and return it
@@ -236,6 +241,7 @@ def check_for_significance(result:                   dict,
         result_.get('components').get(results_key_k).get('monte_carlo').get(surrogates).setdefault('alpha', {})
         
         result_.get('components').get(results_key_k).get('monte_carlo').get(surrogates).get('alpha').setdefault(alpha,{})
+
         if len(larger_surrogates) > allowed_larger_surrogates:
             result_.get('components').get(results_key_k).get('monte_carlo').get(surrogates).get('alpha').get(alpha).update({'signal_psd':psd_signal,
                                                                                                     'surrogate_psd':surrogate_results.get(results_key_k),
@@ -244,15 +250,16 @@ def check_for_significance(result:                   dict,
             result_.get('components').get(results_key_k).get('monte_carlo').get(surrogates).get('alpha').get(alpha).update({'signal_psd':psd_signal,
                                                                                                     'surrogate_psd':surrogate_results.get(results_key_k),
                                                                                                 'pass'         :True})    
+        
         #build list for plotting
         sorted_surrogates = sorted(surrogate_results.get(results_key_k))
         surrogate_index = -1 - allowed_larger_surrogates
         plot_period.append(result_.get('components').get(results_key_k).get('unitless period (number of timesteps)'))
         signal_psd.append(psd_signal)
-        surrogate_psd.append(sorted_surrogates[surrogate_index])
-        
+        surrogate_psd.append(sorted_surrogates[surrogate_index])  
     if trend_always_significant:
         result_.get('components').get('trend').get('monte_carlo').get(surrogates).get('alpha').get(alpha).update({'pass':True})    
+  
     return result_,plot_period,surrogate_psd,signal_psd
 
 ###############################################################################
@@ -287,12 +294,13 @@ def find_significant_components(result:     dict,
     significant_components_index = []
     non_significant_components_index = []
     for iter_i,entry_i in enumerate(result.get('components').keys()):
-        if result.get('components').get('trend').get('monte_carlo').get(surrogates).get('alpha').get(alpha).get('pass'):
+        if result.get('components').get(entry_i).get('monte_carlo').get(surrogates).get('alpha').get(alpha).get('pass'):
             #significant components
             significant_components_index.append(iter_i)
         else:
             #non-significant components    
             non_significant_components_index.append(iter_i)
+    
     return significant_components_index,    non_significant_components_index
 ###############################################################################
 ###############################################################################
@@ -403,7 +411,7 @@ def run_monte_carlo_test(x:                        np.ndarray,
         
         #add psd into surrogate_results dictionary
         for results_key_j in result.get('components').keys():
-            key_array_position = result.get('components').get(results_key_j).get('array_position')[0]
+            key_array_position = result.get('components').get(results_key_j).get('array_position')
             surrogate_results.setdefault(results_key_j, []).append(pzz_surrogate[key_array_position])
     ############################################        
     #check each psd for significance 

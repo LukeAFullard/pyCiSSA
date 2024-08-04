@@ -32,18 +32,22 @@ def generate_results_dictionary(Z:     np.ndarray,
             results.update({
                 frequency_i                 : {
                         'unitless period (number of timesteps)' : 0,
-                        'reconstructed_data'                    : rc[frequency_i],
+                        # 'reconstructed_data'                    : rc[frequency_i],
+                        'reconstructed_data'                    : rc[frequency_i].reshape(len(rc[frequency_i]),),
                         'percentage_share_of_psd'               : sh[frequency_i],
-                        'array_position'                        : kg[frequency_i],
+                        # 'array_position'                        : kg[frequency_i],
+                        'array_position'                        : kg[frequency_i][0],
                                                 }
                 })
         else:
             results.update({
                 frequency_i                 : {
                         'unitless period (number of timesteps)' : 1/frequency_i,
-                        'reconstructed_data'                    : rc[frequency_i],
+                        # 'reconstructed_data'                    : rc[frequency_i],
+                        'reconstructed_data'                    : rc[frequency_i].reshape(len(rc[frequency_i]),),
                         'percentage_share_of_psd'               : sh[frequency_i],
-                        'array_position'                        : kg[frequency_i],
+                        # 'array_position'                        : kg[frequency_i],
+                        'array_position'                        : kg[frequency_i][0],
                                                 }
                 })
     return {'components':results}    

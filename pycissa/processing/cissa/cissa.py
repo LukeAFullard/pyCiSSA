@@ -31,15 +31,12 @@ def initial_data_checks(t: np.ndarray, x: np.ndarray):
     if not type(x) is np.ndarray:
         try: 
             x = np.array(x)
-            x = x.reshape(len(x),1)
+            x = x.reshape(len(x),)
         except: raise ValueError(f'Input "x" is not a numpy array, nor can be converted to one.')
     myshape = x.shape
-    if len(myshape) == 2:
-        rows, cols = myshape[0],myshape[1]
-    else:
+    if not len(myshape) == 1:
         try: 
-            x = x.reshape(len(x),1)
-            rows, cols = x.shape
+            x = x.reshape(len(x),)
         except:
             raise ValueError(f'Input "x" should be a column vector (i.e. only contain a single column). The size of x is ({myshape})')
             
@@ -48,16 +45,13 @@ def initial_data_checks(t: np.ndarray, x: np.ndarray):
     if not type(t) is np.ndarray:
         try: 
             t = np.array(t)
-            t = t.reshape(len(t),1)
+            t = t.reshape(len(t),)
         except: raise ValueError(f'Input "t" is not a numpy array, nor can be converted to one.')
     myshape = t.shape
     
-    if len(myshape) == 2:
-        rows, cols = myshape[0],myshape[1]
-    else:
+    if not len(myshape) == 1:
         try: 
-            t = t.reshape(len(t),1)
-            rows, cols = t.shape
+            t = t.reshape(len(t),)
         except:
             raise ValueError(f'Input "t" should be a column vector (i.e. only contain a single column). The size of t is ({myshape})')
     return t,x
@@ -87,7 +81,14 @@ class Cissa:
         self.t = t #array of times
         self.x = x #array of corresponding data
         #----------------------------------------------------------------------
-        
+    def restore_original_data(self):
+        '''
+        Method to restore original data (x,t) = (x_raw,t_raw)
+        '''
+        from pycissa.preprocessing.data_cleaning.data_cleaning import detect_censored_data
+        self.x = self.x_raw
+        self.t = self.t_raw
+        self.censored = detect_censored_data(self.x)  #if we restore the data we must check if the restored data is censored again...
     #--------------------------------------------------------------------------
     #--------------------------------------------------------------------------    
     def fit(self,
@@ -151,6 +152,7 @@ class Cissa:
             'multi_thread_run' : multi_thread_run,
             })
         self.results = results
+        self.figures = {}  #make a space for future figures
         
         
         #save settings
@@ -161,7 +163,7 @@ class Cissa:
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
-    def predict(self):
+    def post_predict(self):
         print("FUTURE PREDICTION NOT YET IMPLEMENTED")
         #TO DO, maybe using AutoTS or MAPIE?
         return self
@@ -170,7 +172,7 @@ class Cissa:
     #-------------------------------------------------------------------------- 
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
-    def fill_gaps(self,                     
+    def pre_fill_gaps(self,                     
                   L:                          int,
                   convergence:                list = ['value', 1],
                   extension_type:             str  = 'AR_LR',
@@ -317,16 +319,19 @@ class Cissa:
         self.gap_fill_error_rmse_percentage      = error_rmse_percentage
         self.gap_fill_original_points            = original_points 
         self.gap_fill_imputed_points             = imputed_points, 
-        self.figure_gap_fill_error               = fig_errors,
-        self.figure_gap_fill                     = fig_time_series
-        
+        # self.figure_gap_fill_error               = fig_errors,
+        # self.figure_gap_fill                     = fig_time_series
+        self.figures.update({'figure_gap_fill_error':fig_errors,
+                            'figure_gap_fill'      :fig_time_series,
+                            })
+
         return self
     #--------------------------------------------------------------------------
     #--------------------------------------------------------------------------        
     
     #--------------------------------------------------------------------------
     #--------------------------------------------------------------------------        
-    def fix_censored_data(self,
+    def pre_fix_censored_data(self,
                              replace_type:        str = 'raw',
                              lower_multiplier:    float = 0.5,
                              upper_multiplier:    float = 1.1, 
@@ -379,37 +384,39 @@ class Cissa:
             DESCRIPTION: array of locations where any censoring was found. Value of the array = None if no censoring is found at a given array position.
 
         '''
-        from pycissa.preprocessing.data_cleaning.data_cleaning import _fix_censored_data
-        self.x,self.censoring = _fix_censored_data(self.x,
-                                 replace_type = replace_type,
-                                 lower_multiplier = lower_multiplier,
-                                 upper_multiplier = upper_multiplier, 
-                                 default_value_lower = default_value_lower,
-                                 default_value_upper = default_value_upper,
-                                 hicensor_lower = hicensor_lower,
-                                 hicensor_upper = hicensor_upper,)
-        self.censored = False
+        if self.censored:
+            from pycissa.preprocessing.data_cleaning.data_cleaning import _fix_censored_data
+            self.x,self.censoring = _fix_censored_data(self.x,
+                                     replacement_type = replace_type,
+                                     lower_multiplier = lower_multiplier,
+                                     upper_multiplier = upper_multiplier, 
+                                     default_value_lower = default_value_lower,
+                                     default_value_upper = default_value_upper,
+                                     hicensor_lower = hicensor_lower,
+                                     hicensor_upper = hicensor_upper,)
+            self.censored = False
+        else: warnings.warn("WARNING: No censored data detected. Returning unchanged data.")    
         
         return self
     #--------------------------------------------------------------------------
     #--------------------------------------------------------------------------    
-    def fix_missing_samples(
+    def pre_fix_missing_samples(
             self,
+            input_dateformat:     str,
               years:              int = 0, 
               months:             int = 0, 
               days:               int = 0, 
               hours:              int = 0,
               minutes:            int = 0,
               seconds:            int = 0,
-              input_dateformat:   str = '%Y',
               wiggleroom_divisor: int = 2,
               missing_value:      int = np.nan
             ):
         '''
-        Function that finds and corrects misisng values in the time series.
+        Function that finds and corrects missing values in the time series.
         Missing dates result in adding a default value "missing_value" into the input data.
         
-        **THIS FUNCTION IS A WORK IN PROGRESS. USE WITH EXTREME CAUCTION.**
+        **THIS FUNCTION IS A WORK IN PROGRESS. USE WITH EXTREME CAUTION.**
 
         Parameters
         ----------
@@ -417,6 +424,8 @@ class Cissa:
             DESCRIPTION: array of input times/dates.
         x : np.ndarray
             DESCRIPTION: array of input data.
+        input_dateformat : str
+            DESCRIPTION: Datetime string format. See https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes    
         years : int, optional
             DESCRIPTION: (ideal) number of years between each timestep in input array t. The default is 1.
         months : int, optional
@@ -429,8 +438,6 @@ class Cissa:
             DESCRIPTION: (ideal) number of minutes between each timestep in input array t. The default is 0.
         seconds : int, optional
             DESCRIPTION: (ideal) number of seconds between each timestep in input array t. The default is 0.
-        input_dateformat : str, optional
-            DESCRIPTION: Datetime string format. The default is '%Y'. See https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes
         wiggleroom_divisor : int, optional
             DESCRIPTION: constant which ensures that the datetime has a bit of wiggleroom. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 2.
         missing_value : int, optional
@@ -463,7 +470,7 @@ class Cissa:
         
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
-    def run_frequency_time_analysis(self,
+    def post_run_frequency_time_analysis(self,
                                     data_per_period:    int,
                                     period_name:        str = '',
                                     t_unit:             str = '', 
@@ -540,9 +547,11 @@ class Cissa:
                                      data_per_period=data_per_period,period_name=period_name,t_unit=t_unit,plot_frequency=plot_frequency,plot_period=plot_period,logplot_frequency=logplot_frequency,logplot_period=logplot_period,normalise_plots=normalise_plots,height_variable=height_variable,height_unit=height_unit)
                                         
         if fig_f is not None:
-            self.figure_frequency_time = fig_f
+            # self.figure_frequency_time = fig_f
+            self.figures.update({'figure_frequency_time':fig_f})
         if fig_p is not None:
-            self.figure_period_time = fig_p    
+            # self.figure_period_time = fig_p    
+            self.figures.update({'figure_period_time':fig_p})
         
         #add the results to the results dictionary
         results = self.results
@@ -571,7 +580,7 @@ class Cissa:
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
-    def analyse_trend(self,
+    def post_analyse_trend(self,
                       trend_type:        str = 'rolling_OLS',
                       t_unit:            str = '',
                       data_unit:            str = '',
@@ -624,7 +633,7 @@ class Cissa:
         if trend_type == 'linear':
             from pycissa.postprocessing.trend.trend_functions import trend_linear
             
-            self.figure_trend, self.trend_slope, self.trend_increasing_probability, self.trend_increasing_probability_text, self.trend_confidence = trend_linear(
+            figure_trend, self.trend_slope, self.trend_increasing_probability, self.trend_increasing_probability_text, self.trend_confidence = trend_linear(
                              self.results.get('components').get('trend').get('reconstructed_data'),
                              self.t,
                              t_unit=t_unit,
@@ -638,10 +647,11 @@ class Cissa:
                              xaxis_rotation=xaxis_rotation
                              )
             self.trend_type = 'Linear'
+            self.figures.update({'figure_trend':figure_trend})
             #
         elif trend_type == 'rolling_OLS':
             from pycissa.postprocessing.trend.trend_functions import trend_rolling
-            self.figure_trend, self.trend_slope, self.trend_increasing_probability, self.trend_increasing_probability_text, self.trend_confidence = trend_rolling(
+            figure_trend, self.trend_slope, self.trend_increasing_probability, self.trend_increasing_probability_text, self.trend_confidence = trend_rolling(
                               self.results.get('components').get('trend').get('reconstructed_data'),
                               self.t,
                               t_unit=t_unit,
@@ -656,6 +666,7 @@ class Cissa:
                               xaxis_rotation=xaxis_rotation
                               )
             self.trend_type = 'rolling_OLS'
+            self.figures.update({'figure_trend':figure_trend})
             
         else:
             raise ValueError(f"Input value trend_type = {trend_type} is incorrect. Please use one of 'linear' or 'rolling_OLS'.")
@@ -676,7 +687,7 @@ class Cissa:
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
-    def run_monte_carlo_analysis(self,
+    def post_run_monte_carlo_analysis(self,
                                  alpha:                    float = 0.05, 
                                  K_surrogates:             int = 1,
                                  surrogates:               str = 'random_permutation',
@@ -735,7 +746,7 @@ class Cissa:
         for attr_i in necessary_attributes:
             if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please fun the pycissa fit method before running the run_frequency_time_analysis method.")
         
-        self.results, self.figure_monte_carlo = run_monte_carlo_test(x = self.x,
+        self.results, figure_monte_carlo = run_monte_carlo_test(x = self.x,
                              L = self.L,
                              psd=self.psd,
                              results=self.results,
@@ -751,6 +762,7 @@ class Cissa:
                              multi_thread_run=multi_thread_run,
                              generate_toeplitz_matrix=generate_toeplitz_matrix
                                  )
+        self.figures.update({'figure_monte_carlo':figure_monte_carlo})
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
@@ -763,6 +775,7 @@ class Cissa:
      
     #List of stuff to add in here
     '''  
+    check if t is a date, convert it to unix time. Keep t_raw as datetime format
     remove noise
     grouping
     predict method (TO DO, maybe using AutoTS or MAPIE?)

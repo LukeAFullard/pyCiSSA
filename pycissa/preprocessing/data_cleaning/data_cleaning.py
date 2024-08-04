@@ -133,7 +133,7 @@ def _fix_censored_data(x: np.ndarray,
             x_censoring.append(None)
     
     
-    x_uncensored = np.array(x_uncensored, dtype=object) 
+    x_uncensored = np.array(x_uncensored, dtype=float) 
     x_censoring  = np.array(x_censoring, dtype=object)   
 
     ###########################################################################
@@ -148,7 +148,9 @@ def _fix_censored_data(x: np.ndarray,
     if hicensor_upper:
         x_uncensored[x_censoring == '>'] = min(x_uncensored[x_censoring == '>'])
     ###########################################################################
-    ###########################################################################            
+    ###########################################################################        
+    #need to ensure that the final data is float64 and not object    
+    x_uncensored = np.array(x_uncensored, dtype=float)
     return x_uncensored,x_censoring
 
 ###############################################################################
@@ -170,7 +172,7 @@ def _fix_missing_samples(t: np.ndarray,
     Function that finds and corrects misisng values in the time series.
     Missing dates result in adding a default value "missing_value" into the input data.
     
-    **THIS FUNCTION IS A WORK IN PROGRESS. USE WITH EXTREME CAUCTION.**
+    **THIS FUNCTION IS A WORK IN PROGRESS. USE WITH EXTREME CAUTION.**
 
     Parameters
     ----------
@@ -209,13 +211,16 @@ def _fix_missing_samples(t: np.ndarray,
     '''
     import datetime
     from dateutil.relativedelta import relativedelta
+    import copy
     
     #check that sum is not = 0
     if not years+months+days+hours+minutes+seconds>0: 
         raise ValueError('One of the input parameters years, months, weeks, days, hours, minutes, seconds must be greater than zero')
     
+    t_ = copy.deepcopy(t)
+    t_ = [np.datetime64(dt, 's') for dt in t_]
     new_t = []
-    for time_i in t:
+    for time_i in t_:
         if type(time_i) in [str]:
             new_t.append(datetime.datetime.strptime(time_i, input_dateformat))
         elif type(time_i) in [datetime.datetime]:
@@ -231,8 +236,9 @@ def _fix_missing_samples(t: np.ndarray,
                                     hours = hours/wiggleroom_divisor,
                                     minutes = minutes/wiggleroom_divisor + (seconds/60)/wiggleroom_divisor
                                     )
+    date_delta_with_wiggle_room = np.timedelta64(date_delta_with_wiggle_room)
     date_delta = relativedelta(years = years, months = months, days = days, hours = hours, minutes = minutes, seconds = seconds)
-   
+    # date_delta = np.timedelta64(date_delta)
     
     all_dates = []
     all_x = []
@@ -240,6 +246,14 @@ def _fix_missing_samples(t: np.ndarray,
     current_date = min_date
     for time_i, x_i in zip(new_t,x):
         
+        print(str(current_date))
+        print(date_delta)
+
+        print(current_date - date_delta_with_wiggle_room)
+        print(time_i)
+        print(current_date + date_delta_with_wiggle_room)
+        print((time_i > current_date - date_delta_with_wiggle_room))
+        print((time_i < current_date + date_delta_with_wiggle_room))
         
         if (time_i > current_date - date_delta_with_wiggle_room) & (time_i < current_date + date_delta_with_wiggle_room):
             # Here date is within the acceptable range

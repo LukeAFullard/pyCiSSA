@@ -360,7 +360,8 @@ def trend_rolling(Y:              np.ndarray,
     t_raw_ = copy.deepcopy(t)
     if type(t[-1]) in [np.datetime64]:
         #convert to datetime.datetime
-        t = t.astype(datetime.datetime)
+        t0 = t.astype(datetime.datetime)
+        t = np.array([np.int64(dt) for dt in t0])
         
     if type(t[0]) in [np.ndarray]:
         t = np.array([dt[0].astype(datetime.datetime) for dt in t])
@@ -374,7 +375,8 @@ def trend_rolling(Y:              np.ndarray,
     else:
         t_ = sm.add_constant(t, prepend=True) # add constant as the first column
         timestep_unit = t_unit
-        
+
+
     model = RollingOLS(Y,t_,window=window)
     results = model.fit()
     

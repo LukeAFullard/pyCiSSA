@@ -367,7 +367,7 @@ def find_outliers(x_new:                np.ndarray,
     mumax = np.max(x_new[~out])
     
     #define convergence error
-    convergence_error = initialise_convergence_error(convergence) # we will add this later during the iteration
+    convergence_error = initialise_convergence_error(x_new,out,mu,convergence) # we will add this later during the iteration
     
     return out, mu, mumax, convergence_error
 
@@ -618,8 +618,14 @@ def plot_time_series_with_imputed_values(t,x_ca,out,rmse,z_value):
 
     '''
     fig, ax = plt.subplots()
-    ax.plot(t[x_ca[~out]], x_ca[x_ca[~out]], 'b', lw=1.0, label = 'original series')
-    ax.errorbar(t[x_ca[out]],  x_ca[x_ca[out]],  'r+',yerr = [z_value*rmse]*len(x_ca[x_ca[out]]), lw=1.0, label = 'imputed points')
+    ax.plot(t[~out], x_ca[~out], 'b', lw=1.0, label = 'original series')
+    if sum(out)>0:
+        if not np.isnan(z_value*rmse):
+            ax.errorbar(t[out],  x_ca[out],  'r+',yerr = [z_value*rmse]*len(x_ca[out]), lw=1.0, label = 'imputed points')
+        else:
+            ax.plot(t[out], x_ca[out], 'r+', lw=1.0, label = 'imputed points')
+    else: warnings.warn("WARNING: No gaps found in the data.")
+        
     fig.legend(loc="upper left")
     return fig
     
@@ -814,12 +820,17 @@ def fill_timeseries_gaps(t:                          np.ndarray,
     error_rmse             = np.sqrt( (np.sum(error_estimates*error_estimates))/len(error_estimates)    )
     error_rmse_percentage  = np.sqrt( (np.sum(error_estimates_percentage*error_estimates_percentage))/len(error_estimates_percentage)    )
     residuals = original_points - imputed_points
-    
+
     #TO DO. INVESTIGATE CONFORMAL PREDICTION METHODS FOR ADDING PREDICTION INTERVALS
     
     #6 create figures
     if estimate_error:
-        fig_errors = produce_error_comparison_figure(original_points,imputed_points,residuals,error_rmse,error_rmse_percentage)
+        if len(imputed_points) > 0:
+            fig_errors = produce_error_comparison_figure(original_points,imputed_points,residuals,error_rmse,error_rmse_percentage)
+        else: 
+            fig_errors = None
+            warnings.warn("WARNING: No gaps found in the data.")
+    else: fig_errors = None
     
     #7 Make a figure here which plots the original time series and also the imputed values.    
     fig_time_series = plot_time_series_with_imputed_values(t,x_ca,out,error_rmse,z_value)
