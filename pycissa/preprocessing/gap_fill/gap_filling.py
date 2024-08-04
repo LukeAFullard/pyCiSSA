@@ -618,6 +618,7 @@ def plot_time_series_with_imputed_values(t,x_ca,out,rmse,z_value):
 
     '''
     fig, ax = plt.subplots()
+    
     ax.plot(t[~out], x_ca[~out], 'b', lw=1.0, label = 'original series')
     if sum(out)>0:
         if not np.isnan(z_value*rmse):

@@ -22,6 +22,31 @@ def detect_censored_data(x: np.ndarray)-> bool:
     censoring = len([y[0] for y in str(x) if y[0] in ['>','<']])
     return censoring > 0
 
+def detect_nan_data(x: np.ndarray)-> bool:
+    '''
+    This function simply checks to see if any of the entries of the array x are either nan.
+    
+    Function returns True if any data is nan, otherwise returns False
+
+    Parameters
+    ----------
+    x : np.ndarray
+        DESCRIPTION: Array of input data.
+
+    Returns
+    -------
+    bool
+        DESCRIPTION: If there is nan data detected then returns True, otherwise returns False.
+
+    '''
+    def is_nan(value):
+        try:
+            return np.isnan(float(value))
+        except (ValueError, TypeError):
+            return False
+    nan_entries = len([y for y in x if is_nan(y)])
+    return nan_entries > 0
+    
 ###############################################################################
 ###############################################################################
 def _fix_censored_data(x: np.ndarray,

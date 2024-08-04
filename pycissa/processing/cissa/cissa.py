@@ -73,9 +73,15 @@ class Cissa:
         #perform check for censored data
         from pycissa.preprocessing.data_cleaning.data_cleaning import detect_censored_data
         self.censored = detect_censored_data(x)
-        if self.censored: warnings.warn("WARNING: Censored data detected. Please run fix_censored_data before fitting.")
+        if self.censored: warnings.warn("WARNING: Censored data detected. Please run pre_fix_censored_data before fitting.")
         #----------------------------------------------------------------------    
         
+        #----------------------------------------------------------------------
+        #perform check for nan data
+        from pycissa.preprocessing.data_cleaning.data_cleaning import detect_nan_data
+        self.isnan = detect_nan_data(x)
+        if self.isnan: warnings.warn("WARNING: nan data detected. Please run pre_fill_gaps before fitting.")
+        #----------------------------------------------------------------------
         
         #----------------------------------------------------------------------
         self.t = t #array of times
@@ -85,10 +91,11 @@ class Cissa:
         '''
         Method to restore original data (x,t) = (x_raw,t_raw)
         '''
-        from pycissa.preprocessing.data_cleaning.data_cleaning import detect_censored_data
+        from pycissa.preprocessing.data_cleaning.data_cleaning import detect_censored_data,detect_nan_data
         self.x = self.x_raw
         self.t = self.t_raw
         self.censored = detect_censored_data(self.x)  #if we restore the data we must check if the restored data is censored again...
+        self.isnan = detect_nan_data(self.x)
     #--------------------------------------------------------------------------
     #--------------------------------------------------------------------------    
     def fit(self,
@@ -128,8 +135,9 @@ class Cissa:
 
         '''
         #----------------------------------------------------------------------
-        #ensure data is uncensored
-        if self.censored:  raise ValueError("Censored data detected. Please run fix_censored_data before fitting.")
+        #ensure data is uncensored or nan
+        if self.censored:  raise ValueError("Censored data detected. Please run pre_fix_censored_data before fitting.")
+        if self.isnan: raise ValueError("WARNING: nan data detected. Please run pre_fill_gaps before fitting.")
         #----------------------------------------------------------------------
         
         #run cissa
@@ -324,6 +332,8 @@ class Cissa:
         self.figures.update({'figure_gap_fill_error':fig_errors,
                             'figure_gap_fill'      :fig_time_series,
                             })
+        from pycissa.preprocessing.data_cleaning.data_cleaning import detect_nan_data
+        self.isnan = detect_nan_data(self.x)
 
         return self
     #--------------------------------------------------------------------------
@@ -385,7 +395,7 @@ class Cissa:
 
         '''
         if self.censored:
-            from pycissa.preprocessing.data_cleaning.data_cleaning import _fix_censored_data
+            from pycissa.preprocessing.data_cleaning.data_cleaning import _fix_censored_data, detect_nan_data, detect_censored_data
             self.x,self.censoring = _fix_censored_data(self.x,
                                      replacement_type = replace_type,
                                      lower_multiplier = lower_multiplier,
@@ -394,7 +404,9 @@ class Cissa:
                                      default_value_upper = default_value_upper,
                                      hicensor_lower = hicensor_lower,
                                      hicensor_upper = hicensor_upper,)
-            self.censored = False
+            self.isnan = detect_nan_data(self.x)
+            self.censored = detect_censored_data(self.x)
+            
         else: warnings.warn("WARNING: No censored data detected. Returning unchanged data.")    
         
         return self
@@ -466,6 +478,8 @@ class Cissa:
                                    input_dateformat=input_dateformat,
                                    wiggleroom_divisor=wiggleroom_divisor,
                                    missing_value=missing_value)
+        from pycissa.preprocessing.data_cleaning.data_cleaning import detect_nan_data
+        self.isnan = detect_nan_data(self.x)
         return self
         
     #--------------------------------------------------------------------------
