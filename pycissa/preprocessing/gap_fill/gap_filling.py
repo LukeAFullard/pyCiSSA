@@ -791,21 +791,22 @@ def fill_timeseries_gaps(t:                          np.ndarray,
             x_new = initial_guess_for_gap_values(x_new,final_out,initial_guess,mu,mumax)
 
             # 3c-iv. Iterate through
-            while np.max(np.abs(x_old-x_new))>convergence_error:
+            current_error = 1.1*convergence_error
+            while current_error>convergence_error:
                 x_new,x_old = update_imputed_gap_values(x_new,L,extension_type,multi_thread_run,component_selection_method,
                                                         number_of_groups_to_drop,eigenvalue_proportion,final_out,use_cissa_overlap=use_cissa_overlap,drop_points_from=drop_points_from)
-        
+                current_error = np.max(np.abs(x_old-x_new))
 
-            # % corrected series
-            x_ca = x_new.copy()
             
             # 3c-v. Check convergence
-            if np.max(np.abs(x_ca-x_old))>convergence_error:
+            if np.max(np.abs(x_ca-x_new))>convergence_error:
                 iter_i += 1
             else:
                 iter_i = 0
             if verbose: print(f'iteration: {iter_i}, error: {np.max(np.abs(x_ca-x_old))} vs target error: {convergence_error}')    
             
+            # % corrected series
+            x_ca = x_new.copy()
             
             
             if iter_i > max_iter:

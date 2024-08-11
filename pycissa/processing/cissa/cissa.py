@@ -151,17 +151,17 @@ class Cissa:
         #generate initial results dictionary
         from pycissa.utilities.generate_cissa_result_dictionary import generate_results_dictionary
         self.results = generate_results_dictionary(self.Z,self.psd,L)
-        
+
         results = self.results
-        results.setdefault('model parameters', {})
-        results.get('model parameters').update({
+        results.get('cissa').setdefault('model parameters', {})
+        results.get('cissa').get('model parameters').update({
             'extension_type'   : extension_type, 
             'L'                : L,
             'multi_thread_run' : multi_thread_run,
             })
         self.results = results
         self.figures = {}  #make a space for future figures
-        
+        self.figures.update({'cissa':{}})
         
         #save settings
         self.extension_type = extension_type
@@ -329,7 +329,7 @@ class Cissa:
         self.gap_fill_imputed_points             = imputed_points, 
         # self.figure_gap_fill_error               = fig_errors,
         # self.figure_gap_fill                     = fig_time_series
-        self.figures.update({'figure_gap_fill_error':fig_errors,
+        self.figures.get('cissa').update({'figure_gap_fill_error':fig_errors,
                             'figure_gap_fill'      :fig_time_series,
                             })
         from pycissa.preprocessing.data_cleaning.data_cleaning import detect_nan_data
@@ -562,14 +562,14 @@ class Cissa:
                                         
         if fig_f is not None:
             # self.figure_frequency_time = fig_f
-            self.figures.update({'figure_frequency_time':fig_f})
+            self.figures.get('cissa').update({'figure_frequency_time':fig_f})
         if fig_p is not None:
             # self.figure_period_time = fig_p    
-            self.figures.update({'figure_period_time':fig_p})
+            self.figures.get('cissa').update({'figure_period_time':fig_p})
         
         #add the results to the results dictionary
         results = self.results
-        results.update({'frequency_time_results':{
+        results.get('cissa').update({'frequency_time_results':{
             'frequency_list'   : self.frequency_list, 
             'period_list'      : self.period_list, 
             'amplitude_matrix' : self.amplitude_matrix, 
@@ -577,8 +577,8 @@ class Cissa:
             'phase_matrix'     : self.phase_matrix, }
             })
         
-        results.setdefault('model parameters', {})
-        results.get('model parameters').update({
+        results.get('cissa').setdefault('model parameters', {})
+        results.get('cissa').get('model parameters').update({
             'data_per_period'   : data_per_period, 
             'period_name'       : period_name,
             't_unit'            : t_unit,
@@ -648,7 +648,7 @@ class Cissa:
             from pycissa.postprocessing.trend.trend_functions import trend_linear
             
             figure_trend, self.trend_slope, self.trend_increasing_probability, self.trend_increasing_probability_text, self.trend_confidence = trend_linear(
-                             self.results.get('components').get('trend').get('reconstructed_data'),
+                             self.results.get('cissa').get('components').get('trend').get('reconstructed_data'),
                              self.t,
                              t_unit=t_unit,
                              Y_unit=data_unit,
@@ -661,12 +661,12 @@ class Cissa:
                              xaxis_rotation=xaxis_rotation
                              )
             self.trend_type = 'Linear'
-            self.figures.update({'figure_trend':figure_trend})
+            self.figures.get('cissa').update({'figure_trend':figure_trend})
             #
         elif trend_type == 'rolling_OLS':
             from pycissa.postprocessing.trend.trend_functions import trend_rolling
             figure_trend, self.trend_slope, self.trend_increasing_probability, self.trend_increasing_probability_text, self.trend_confidence = trend_rolling(
-                              self.results.get('components').get('trend').get('reconstructed_data'),
+                              self.results.get('cissa').get('components').get('trend').get('reconstructed_data'),
                               self.t,
                               t_unit=t_unit,
                               Y_unit=data_unit,
@@ -680,7 +680,7 @@ class Cissa:
                               xaxis_rotation=xaxis_rotation
                               )
             self.trend_type = 'rolling_OLS'
-            self.figures.update({'figure_trend':figure_trend})
+            self.figures.get('cissa').update({'figure_trend':figure_trend})
             
         else:
             raise ValueError(f"Input value trend_type = {trend_type} is incorrect. Please use one of 'linear' or 'rolling_OLS'.")
@@ -688,9 +688,9 @@ class Cissa:
         
        #update results dictionary
         results = self.results
-        results.setdefault('trend results', {})
-        results.get('trend results').setdefault(self.trend_type, {})
-        results.get('trend results').get(self.trend_type).update({
+        results.get('cissa').setdefault('trend results', {})
+        results.get('cissa').get('trend results').setdefault(self.trend_type, {})
+        results.get('cissa').get('trend results').get(self.trend_type).update({
             'trend_slope'                       : self.trend_slope, 
             'trend_increasing_probability'      : self.trend_increasing_probability,
             'trend_increasing_probability_text' : self.trend_increasing_probability_text,
@@ -760,10 +760,10 @@ class Cissa:
         for attr_i in necessary_attributes:
             if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please fun the pycissa fit method before running the run_frequency_time_analysis method.")
         
-        self.results, figure_monte_carlo = run_monte_carlo_test(x = self.x,
+        mc_results, figure_monte_carlo = run_monte_carlo_test(x = self.x,
                              L = self.L,
                              psd=self.psd,
-                             results=self.results,
+                             results=self.results.get('cissa'),
                              alpha=alpha,
                              K_surrogates=K_surrogates,
                              surrogates=surrogates,
@@ -776,7 +776,8 @@ class Cissa:
                              multi_thread_run=multi_thread_run,
                              generate_toeplitz_matrix=generate_toeplitz_matrix
                                  )
-        self.figures.update({'figure_monte_carlo':figure_monte_carlo})
+        self.results.get('cissa').update(mc_results)
+        self.figures.get('cissa').update({'figure_monte_carlo':figure_monte_carlo})
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
