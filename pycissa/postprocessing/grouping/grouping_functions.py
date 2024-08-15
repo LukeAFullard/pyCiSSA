@@ -380,7 +380,9 @@ def drop_smallest_proportion_psd(Z,psd,eigenvalue_proportion):
 
     '''
     rc, sh, _, _ = group(Z,psd,eigenvalue_proportion)
-    new_array = np.zeros(sh.shape)
+
+    new_array = np.zeros(Z[:,0:1].shape)
+    
     for key_i in rc.keys(): #iterate through the components to rebuild the signal
         new_array += rc[key_i]
     return new_array    

@@ -86,6 +86,9 @@ class Cissa:
         #----------------------------------------------------------------------
         self.t = t #array of times
         self.x = x #array of corresponding data
+        
+        self.figures = {}  #make a space for future figures
+        self.figures.update({'cissa':{}})
         #----------------------------------------------------------------------
     def restore_original_data(self):
         '''
@@ -160,8 +163,7 @@ class Cissa:
             'multi_thread_run' : multi_thread_run,
             })
         self.results = results
-        self.figures = {}  #make a space for future figures
-        self.figures.update({'cissa':{}})
+        
         
         #save settings
         self.extension_type = extension_type
@@ -188,6 +190,8 @@ class Cissa:
                   initial_guess:              list = ['previous', 1],
                   outliers:                   list = ['nan_only',None],
                   estimate_error:             bool  = True,
+                  test_number:                int = 10,
+                  test_repeats:               int = 1,
                   z_value:                    float = 1.96,
                   component_selection_method: str = 'drop_smallest_proportion',
                   eigenvalue_proportion:      float = 0.95,
@@ -195,7 +199,7 @@ class Cissa:
                   data_per_unit_period:       int = 1,
                   use_cissa_overlap:          bool = False,
                   drop_points_from:           str = 'Left',
-                  max_iter:                   int = 10,
+                  max_iter:                   int = 50,
                   verbose:                    bool = False
                   ):
         '''
@@ -253,6 +257,10 @@ class Cissa:
                         The default is ['nan_only',None].
         estimate_error : bool, optional
             DESCRIPTION. Flag which determines if we will be estimating the error in the gap filling or not. The default is True.
+        test_number : int  
+            DESCRIPTION: Number of known points to remove in each iteration to help validate the error (the larger the longer the code will take to run but more accurate our error estimate). The default is 10.
+        test_repeats : int
+            DESCRIPTION: Number of times to repeat the gap filling process to estimate error (the larger the longer the code will take to run but more accurate our error estimate). The default is 1.    
         z_value : float, optional
             DESCRIPTION: z-value for confidence interval (= 1.96 for a 95% confidence interval, for example)           
         component_selection_method : str, optional
@@ -273,7 +281,7 @@ class Cissa:
         drop_points_from : str, optional
             DESCRIPTION. Only used if use_cissa_overlap == True. If the time series does not divide the overlap exactly, which side to drop data from. The default is 'Left'. 
         max_iter : int, optional
-            DESCRIPTION. Maximum number of iterations to check for convergence. The default is 10.
+            DESCRIPTION. Maximum number of iterations to check for convergence. The default is 50.
         verbose : bool, optional
             DESCRIPTION. Whether to print some info to the console or not. The default is False.
 

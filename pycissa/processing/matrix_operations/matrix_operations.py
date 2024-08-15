@@ -629,7 +629,13 @@ def run_cissa(x: np.ndarray,
         DESCRIPTION: estimation of the the circulant matrix power spectral density
 
     '''
-    
+    import platform
+    if platform.system() in ['Windows','Darwin','Emscripten']:
+        import warnings
+        warnings.warn("WARNING: Sorry, multiprocessing does not work on Windows or OS X yet... switching to single core run")    
+        multi_thread_run = False
+
+
     #1. run input checks
     x,T,N = cissa_input_checks(x,extension_type,L)
     

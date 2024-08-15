@@ -117,7 +117,7 @@ def validate_input_parameters(x:              np.ndarray,
 
 ###############################################################################
 ###############################################################################
-def initialise_error_and_repeats(estimate_error: bool):
+def initialise_error_estimates(estimate_error: bool):
     '''
     Function to initialise some of the required parameters for error estimation.
 
@@ -128,10 +128,6 @@ def initialise_error_and_repeats(estimate_error: bool):
 
     Returns
     -------
-    test_number : int
-        DESCRIPTION: Number of known points to remove in each iteration to help validate the error (the larger the longer the code will take to run but more accurate our error estimate)
-    test_repeats : int
-        DESCRIPTION: Number of times to repeat the gap filling process to estimate error (the larger the longer the code will take to run but more accurate our error estimate)
     error_rmse : float
         DESCRIPTION: Root mean squared error of test points.
     error_rmse_percentage : float
@@ -150,8 +146,6 @@ def initialise_error_and_repeats(estimate_error: bool):
         DESCRIPTION: Array of the imputed time series points.
 
     '''
-    test_number                = 0
-    test_repeats               = 0
     error_rmse                 = np.nan
     error_rmse_percentage      = np.nan
     fig, ax                    = plt.subplots(1, 1)
@@ -167,7 +161,7 @@ def initialise_error_and_repeats(estimate_error: bool):
         error_estimates_percentage = np.empty(0)
         original_points            = np.empty(0)
         imputed_points             = np.empty(0)
-    return test_number, test_repeats, error_rmse, error_rmse_percentage, fig, ax, error_estimates, error_estimates_percentage, original_points, imputed_points       
+    return error_rmse, error_rmse_percentage, fig, ax, error_estimates, error_estimates_percentage, original_points, imputed_points       
 
 ###############################################################################
 ###############################################################################
@@ -529,7 +523,7 @@ def update_imputed_gap_values(x_new: np.ndarray,
             #
         elif component_selection_method == 'drop_smallest_proportion':
             from pycissa.postprocessing.grouping.grouping_functions import drop_smallest_proportion_psd
-            temp_array = drop_smallest_proportion_psd
+            temp_array = drop_smallest_proportion_psd(Z,psd,eigenvalue_proportion)
 
         elif component_selection_method == 'drop_non_AR_noise (Work in progress)':   
             print('NOTE: ADD OPTION HERE TO REMOVE NON-AUTOREGRESSIVE SIGNALS ')
@@ -618,11 +612,22 @@ def plot_time_series_with_imputed_values(t,x_ca,out,rmse,z_value):
 
     '''
     fig, ax = plt.subplots()
+
+    try: 
+        x_ca = x_ca.reshape(len(x_ca),)
+    except:
+        raise ValueError(f'"x_ca" should be a column vector. The size of x_ca is ({x_ca.shape})')
     
+    try: 
+        out = out.reshape(len(out),)
+    except:
+        raise ValueError(f'"out" should be a column vector. The size of out is ({out.shape})')
+
+    # print(out)
     ax.plot(t[~out], x_ca[~out], 'b', lw=1.0, label = 'original series')
     if sum(out)>0:
         if not np.isnan(z_value*rmse):
-            ax.errorbar(t[out],  x_ca[out],  'r+',yerr = [z_value*rmse]*len(x_ca[out]), lw=1.0, label = 'imputed points')
+            ax.errorbar(t[out],  x_ca[out],  fmt = 'ro',yerr = [z_value*rmse]*len(x_ca[out]), lw=1.0, label = 'imputed points')
         else:
             ax.plot(t[out], x_ca[out], 'r+', lw=1.0, label = 'imputed points')
     else: warnings.warn("WARNING: No gaps found in the data.")
@@ -647,6 +652,8 @@ def fill_timeseries_gaps(t:                          np.ndarray,
                          initial_guess:              list = ['previous', 1],
                          outliers:                   list = ['nan_only',None],
                          estimate_error:             bool  = True,
+                         test_number:                int = 10,
+                         test_repeats:               int = 1,
                          z_value:                    float = 1.96,  
                          component_selection_method: str = 'drop_smallest_proportion',
                          eigenvalue_proportion:      float = 0.95,
@@ -654,7 +661,7 @@ def fill_timeseries_gaps(t:                          np.ndarray,
                          data_per_unit_period:       int = 1,
                          use_cissa_overlap:          bool = False,
                          drop_points_from:           str = 'Left',
-                         max_iter:                   int = 10,
+                         max_iter:                   int = 50,
                          verbose:                    bool = False
                          ):
     '''
@@ -712,6 +719,10 @@ def fill_timeseries_gaps(t:                          np.ndarray,
                     The default is ['nan_only',None].
     estimate_error : bool, optional
         DESCRIPTION: Flag which determines if we will be estimating the error in the gap filling or not. The default is True.
+    test_number : int  
+        DESCRIPTION: Number of known points to remove in each iteration to help validate the error (the larger the longer the code will take to run but more accurate our error estimate). The default is 10.
+    test_repeats : int
+        DESCRIPTION: Number of times to repeat the gap filling process to estimate error (the larger the longer the code will take to run but more accurate our error estimate). The default is 1.    
     z_value : float, optional
         DESCRIPTION: z-value for confidence interval (= 1.96 for a 95% confidence interval, for example)       
     component_selection_method : str, optional
@@ -732,7 +743,7 @@ def fill_timeseries_gaps(t:                          np.ndarray,
     drop_points_from : str, optional
         DESCRIPTION. Only used if use_cissa_overlap == True. If the time series does not divide the overlap exactly, which side to drop data from. The default is 'Left'. 
     max_iter : int, optional
-        DESCRIPTION. Maximum number of iterations to check for convergence. The default is 10.
+        DESCRIPTION. Maximum number of iterations to check for convergence. The default is 50.
     verbose : bool, optional
         DESCRIPTION. Whether to print some info to the console or not. The default is False.
 
@@ -757,13 +768,15 @@ def fill_timeseries_gaps(t:                          np.ndarray,
     fig_time_series : matplotlit.figure|None
         DESCRIPTION: Figure plotting the time series with imputed values.   
     '''
-    
+    #ensure we don't get rid of more than half the time series... may need to make this even more strict in the future.
+    if test_number > (len(x)/2):
+        test_number = int(np.floor((len(x)/2)))
     
     # 1. Validate inputs
     x =  validate_input_parameters(x,L,extension_type,outliers,initial_guess,convergence)
     
     # 2. Initialise some variables
-    test_number, test_repeats, error_rmse, error_rmse_percentage, fig, ax, error_estimates, error_estimates_percentage, original_points, imputed_points = initialise_error_and_repeats(estimate_error)
+    error_rmse, error_rmse_percentage, fig, ax, error_estimates, error_estimates_percentage, original_points, imputed_points = initialise_error_estimates(estimate_error)
     k,l_t,g_t = initialise_outlier_type(outliers)
     
     # 3. Begin outlier/missing data iterations
@@ -783,19 +796,27 @@ def fill_timeseries_gaps(t:                          np.ndarray,
         while iter_i>0:
             # 3c-i. Find outliers/missing data and convergence criterion
             out, mu, mumax, convergence_error = find_outliers(x_new,outliers,k,l_t,g_t,convergence,data_per_unit_period)
-            
+            if sum(out) == 0:
+                warnings.warn("WARNING: No gaps found in the data. Returning the original (unmodified) time-series.")
+                return x,None,None,None,None,None,None,None,None
             # 3c-ii. Randomly select non-outlier points to evaluate error in gap filling
             new_random_points, final_out  = remove_good_points_at_random(out,iter_i,test_number)
-            
+
             # 3c-iii. Add initial guess to outlier/nan/ gap points
             x_new = initial_guess_for_gap_values(x_new,final_out,initial_guess,mu,mumax)
-
+            
             # 3c-iv. Iterate through
             current_error = 1.1*convergence_error
+            while_iter = 0
             while current_error>convergence_error:
                 x_new,x_old = update_imputed_gap_values(x_new,L,extension_type,multi_thread_run,component_selection_method,
                                                         number_of_groups_to_drop,eigenvalue_proportion,final_out,use_cissa_overlap=use_cissa_overlap,drop_points_from=drop_points_from)
                 current_error = np.max(np.abs(x_old-x_new))
+                if verbose: print(f'iteration {while_iter}. ',current_error,' vs target error: ',convergence_error)
+                while_iter += 1
+                if while_iter > max_iter:
+                    warnings.warn(f'WARNING: We have exceeded the max number of iterations ({max_iter}) without convergence. Returning the original (unmodified) time-series.')
+                    return x,None,None,None,None,None,None, None, None
 
             
             # 3c-v. Check convergence
@@ -803,7 +824,7 @@ def fill_timeseries_gaps(t:                          np.ndarray,
                 iter_i += 1
             else:
                 iter_i = 0
-            if verbose: print(f'iteration: {iter_i}, error: {np.max(np.abs(x_ca-x_old))} vs target error: {convergence_error}')    
+            if verbose: print(f'iteration: {iter_i}, error: {np.max(np.abs(x_ca-x_new))} vs target error: {convergence_error}')    
             
             # % corrected series
             x_ca = x_new.copy()
@@ -811,7 +832,7 @@ def fill_timeseries_gaps(t:                          np.ndarray,
             
             if iter_i > max_iter:
                 warnings.warn(f'WARNING: We have exceeded the max number of iterations ({max_iter}) without convergence. Returning the original (unmodified) time-series.')
-                return x,None,None,None,None,None,None, None
+                return x,None,None,None,None,None,None, None, None
         
         #4. Update error estimation and points.
         error_estimates            = np.append(error_estimates,np.abs(x[new_random_points] - x_ca[new_random_points]))
