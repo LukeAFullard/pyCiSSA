@@ -200,7 +200,9 @@ class Cissa:
                   use_cissa_overlap:          bool = False,
                   drop_points_from:           str = 'Left',
                   max_iter:                   int = 50,
-                  verbose:                    bool = False
+                  verbose:                    bool = False,
+                  alpha:                      float = 0.05,
+                  **kwargs,
                   ):
         '''
         Function to fill in gaps (NaN values) and/or replace outliers in a timeseries via imputation.
@@ -284,7 +286,10 @@ class Cissa:
             DESCRIPTION. Maximum number of iterations to check for convergence. The default is 50.
         verbose : bool, optional
             DESCRIPTION. Whether to print some info to the console or not. The default is False.
-
+        alpha : float, optional
+            DESCRIPTION. Only used if component_selection_method == 'monte_carlo_significant_components'. Significance level for surrogate hypothesis test. For example, --> 100*(1-alpha)% confidence interval. The default is 0.05 (a 95% confidence interval).
+        **kwargs : named monte carlo input parameters
+        
         Returns  
         -------
         x_ca : np.ndarray
@@ -308,6 +313,8 @@ class Cissa:
 
         '''
         from pycissa.preprocessing.gap_fill.gap_filling import fill_timeseries_gaps
+        from pycissa.postprocessing.monte_carlo.montecarlo import prepare_monte_carlo_kwargs
+        K_surrogates, surrogates, seed, sided_test, remove_trend,trend_always_significant, A_small_shuffle, generate_toeplitz_matrix = prepare_monte_carlo_kwargs(kwargs)
         x_ca,error_estimates,error_estimates_percentage,error_rmse,error_rmse_percentage,original_points,imputed_points, fig_errors,fig_time_series = fill_timeseries_gaps(
                                 self.t,                     
                                 self.x,
@@ -326,7 +333,18 @@ class Cissa:
                                  use_cissa_overlap=use_cissa_overlap,
                                  drop_points_from=drop_points_from,
                                  max_iter=max_iter,
-                                 verbose=verbose)
+                                 test_number=test_number,
+                                 test_repeats=test_repeats,
+                                 verbose=verbose,
+                                 alpha=alpha,
+                                 K_surrogates=K_surrogates,
+                                 surrogates=surrogates,
+                                 seed=seed,   
+                                 sided_test=sided_test,
+                                 remove_trend=remove_trend,
+                                 trend_always_significant=trend_always_significant,
+                                 A_small_shuffle=A_small_shuffle,
+                                 generate_toeplitz_matrix=generate_toeplitz_matrix,)
         
         self.x = x_ca
         self.gap_fill_error_estimates            = error_estimates

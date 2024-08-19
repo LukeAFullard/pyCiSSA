@@ -388,7 +388,13 @@ def drop_smallest_proportion_psd(Z,psd,eigenvalue_proportion):
     return new_array    
 ###############################################################################
 ###############################################################################
-
+def drop_monte_carlo_non_significant_components(Z,tempresults,surrogates,alpha):
+    new_array = np.zeros(Z[:,0:1].shape)
+    for results_key_k in tempresults.get('components').keys():
+        if tempresults.get('components').get(results_key_k).get('monte_carlo').get(surrogates).get('alpha').get(alpha).get('pass'):
+            rc_length= len(tempresults.get('components').get(results_key_k).get('reconstructed_data'))
+            new_array += tempresults.get('components').get(results_key_k).get('reconstructed_data').reshape(rc_length,1)
+    return new_array        
 ###############################################################################
 ###############################################################################
 

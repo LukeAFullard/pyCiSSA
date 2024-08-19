@@ -464,9 +464,10 @@ def initial_guess_for_gap_values(x_new:         np.ndarray,
 
 ###############################################################################
 ###############################################################################
+
 def update_imputed_gap_values(x_new: np.ndarray,
                               L: int,
-                              extension_type: list,
+                              extension_type: str,
                               multi_thread_run: bool,
                               component_selection_method: str,
                               number_of_groups_to_drop:   int,
@@ -474,6 +475,8 @@ def update_imputed_gap_values(x_new: np.ndarray,
                               final_out:                  np.ndarray,
                               use_cissa_overlap:          bool = False,
                               drop_points_from:           str = 'Left',
+                              alpha:                      float = 0.05,
+                              **kwargs,
                               ):
     '''
     Function which performs a CiSSA step with the most recent data values (i.e. with most recent guess/value for missing/outlier values).
@@ -503,7 +506,9 @@ def update_imputed_gap_values(x_new: np.ndarray,
         DESCRIPTION. Whether we use ordinary CiSSA (True) or overlap-Cissa (False). The default is False.
     drop_points_from : str, optional
         DESCRIPTION. Only used if use_cissa_overlap == True. If the time series does not divide the overlap exactly, which side to drop data from? The default is 'Left'.
-
+    alpha : float, optional
+        DESCRIPTION. Only used if component_selection_method == 'monte_carlo_significant_components'. Significance level for surrogate hypothesis test. For example, --> 100*(1-alpha)% confidence interval. The default is 0.05 (a 95% confidence interval).
+    **kwargs : named monte carlo input parameters
     Returns
     -------
     x_new : np.ndarray
@@ -524,9 +529,36 @@ def update_imputed_gap_values(x_new: np.ndarray,
         elif component_selection_method == 'drop_smallest_proportion':
             from pycissa.postprocessing.grouping.grouping_functions import drop_smallest_proportion_psd
             temp_array = drop_smallest_proportion_psd(Z,psd,eigenvalue_proportion)
-
+            #
         elif component_selection_method == 'drop_non_AR_noise (Work in progress)':   
             print('NOTE: ADD OPTION HERE TO REMOVE NON-AUTOREGRESSIVE SIGNALS ')
+            #
+        elif component_selection_method == 'monte_carlo_significant_components':   
+            warnings.warn("NOTE: The monte_carlo_significant_components method can sometimes be a challenge to converge due to the natural and expected changing number of significant components due to the surrogate testing. If challenges are found, try reducting alpha so that surrogate components rarely switch from non-significant to significant, or alternatively, loosen the convergence tolerance.")    
+            #
+            # If challenges are found, try reducting alpha so that surrogate components rarely switch from non-significant to significant.
+            from pycissa.utilities.generate_cissa_result_dictionary import generate_results_dictionary
+            from pycissa.postprocessing.grouping.grouping_functions import drop_monte_carlo_non_significant_components
+            from pycissa.postprocessing.monte_carlo.montecarlo import run_monte_carlo_test,prepare_monte_carlo_kwargs
+            temp_results = generate_results_dictionary(Z,psd,L)
+            K_surrogates, surrogates, seed, sided_test, remove_trend,trend_always_significant, A_small_shuffle, generate_toeplitz_matrix = prepare_monte_carlo_kwargs(kwargs)
+            
+            temp_result,_ = run_monte_carlo_test(x_new,L,psd,temp_results.get('cissa'),alpha=alpha,
+                                     K_surrogates=K_surrogates,
+                                     surrogates=surrogates,
+                                     seed=seed,   
+                                     sided_test=sided_test,
+                                     remove_trend=remove_trend,
+                                     trend_always_significant=trend_always_significant,
+                                     A_small_shuffle=A_small_shuffle,
+                                     extension_type=extension_type,
+                                     multi_thread_run=multi_thread_run,
+                                     generate_toeplitz_matrix=generate_toeplitz_matrix,
+                                     plot_figure=False,
+                                     )
+            temp_array = drop_monte_carlo_non_significant_components(Z,temp_result,surrogates,alpha)
+            
+            #
         else:
             raise ValueError(f"Input parameter component_selection_method was supplied as {component_selection_method}. This MUST be one of 'drop_smallest_n', 'drop_smallest_proportion', or 'drop_non_AR_noise (Work in progress)'.")
         #
@@ -662,7 +694,9 @@ def fill_timeseries_gaps(t:                          np.ndarray,
                          use_cissa_overlap:          bool = False,
                          drop_points_from:           str = 'Left',
                          max_iter:                   int = 50,
-                         verbose:                    bool = False
+                         verbose:                    bool = False,
+                         alpha:                      float = 0.05,
+                         **kwargs,
                          ):
     '''
     Function to fill in gaps (NaN values) and/or replace outliers in a timeseries via imputation.
@@ -771,6 +805,10 @@ def fill_timeseries_gaps(t:                          np.ndarray,
     #ensure we don't get rid of more than half the time series... may need to make this even more strict in the future.
     if test_number > (len(x)/2):
         test_number = int(np.floor((len(x)/2)))
+        
+    from pycissa.postprocessing.monte_carlo.montecarlo import prepare_monte_carlo_kwargs
+    K_surrogates, surrogates, seed, sided_test, remove_trend,trend_always_significant, A_small_shuffle, generate_toeplitz_matrix = prepare_monte_carlo_kwargs(kwargs)
+    
     
     # 1. Validate inputs
     x =  validate_input_parameters(x,L,extension_type,outliers,initial_guess,convergence)
@@ -810,7 +848,16 @@ def fill_timeseries_gaps(t:                          np.ndarray,
             while_iter = 0
             while current_error>convergence_error:
                 x_new,x_old = update_imputed_gap_values(x_new,L,extension_type,multi_thread_run,component_selection_method,
-                                                        number_of_groups_to_drop,eigenvalue_proportion,final_out,use_cissa_overlap=use_cissa_overlap,drop_points_from=drop_points_from)
+                                                        number_of_groups_to_drop,eigenvalue_proportion,final_out,use_cissa_overlap=use_cissa_overlap,drop_points_from=drop_points_from,
+                                                        alpha=alpha,
+                                                        K_surrogates=K_surrogates,
+                                                        surrogates=surrogates,
+                                                        seed=seed,   
+                                                        sided_test=sided_test,
+                                                        remove_trend=remove_trend,
+                                                        trend_always_significant=trend_always_significant,
+                                                        A_small_shuffle=A_small_shuffle,
+                                                        generate_toeplitz_matrix=generate_toeplitz_matrix)
                 current_error = np.max(np.abs(x_old-x_new))
                 if verbose: print(f'iteration {while_iter}. ',current_error,' vs target error: ',convergence_error)
                 while_iter += 1

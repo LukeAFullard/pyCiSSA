@@ -319,6 +319,7 @@ def run_monte_carlo_test(x:                        np.ndarray,
                          extension_type:           str = 'AR_LR',
                          multi_thread_run:         bool = True,
                          generate_toeplitz_matrix: bool = False,
+                         plot_figure:              bool = True,
                          ) -> tuple[dict,plt.figure]:
     '''
     Function to run a monte_carlo significance test on components of a signal, extracted via CiSSA.
@@ -367,7 +368,8 @@ def run_monte_carlo_test(x:                        np.ndarray,
         DESCRIPTION: Flag to indicate whether the diagonal averaging is performed on multiple cpu cores (True) or not. The default is True.
     generate_toeplitz_matrix : bool, optional
         DESCRIPTION: Flag to indicate whether we need to calculate the symmetric Toeplitz matrix or not. The default is False.
-
+    plot_figure: bool, optional
+        DESCRIPTION: Flag to indicate whether we need to plot results or not. The default is True.
     Returns
     -------
     result : dict
@@ -387,7 +389,7 @@ def run_monte_carlo_test(x:                        np.ndarray,
     result = copy.deepcopy(results)
     x_copy = copy.deepcopy(x)
     if remove_trend:
-        x_copy -= result.get('components').get('trend').get('reconstructed_data')
+        x_copy -= result.get('components').get('trend').get('reconstructed_data').reshape(x_copy.shape)
     
     #get psd
     pzz,nft,psd_length = get_paired_psd(L,psd)
@@ -403,7 +405,7 @@ def run_monte_carlo_test(x:                        np.ndarray,
             # Lucio, J. H., Valdés, R., & Rodríguez, L. R. (2012). Improvements to surrogate data methods for nonstationary time series. Physical Review E, 85(5), 056202.
             # Unfortunately this seems to make the trend not significant. 
             # Can offset this by setting trend_always_significant = True
-            x_surrogate += result.get('components').get('trend').get('reconstructed_data').reshape(len(x_copy),)
+            x_surrogate += result.get('components').get('trend').get('reconstructed_data').reshape(x_surrogate.shape)
             
             
         #calculate surrogate psd
@@ -419,17 +421,47 @@ def run_monte_carlo_test(x:                        np.ndarray,
     
     #find the significant components
     significant_components_index,    non_significant_components_index = find_significant_components(result,surrogates,alpha)
-    
-    #create a plot of the results including significance
-    fig,ax = plot_monte_carlo_results(plot_period,surrogate_psd,signal_psd,alpha,significant_components_index,non_significant_components_index)
+    fig = None
+    if plot_figure:
+        #create a plot of the results including significance
+        fig,ax = plot_monte_carlo_results(plot_period,surrogate_psd,signal_psd,alpha,significant_components_index,non_significant_components_index)
     
     return result,fig
     
     
 ###############################################################################
 ###############################################################################
+def prepare_monte_carlo_kwargs(kw_dict):
+    K_surrogates = kw_dict.get('K_surrogates')
+    if not K_surrogates: K_surrogates = 1
+    
+    surrogates = kw_dict.get('surrogates')
+    if not surrogates: surrogates = 'random_permutation'
+    
+    seed = kw_dict.get('seed')
 
+    sided_test = kw_dict.get('sided_test')
+    if not sided_test: sided_test = 'one sided'
+    
+    remove_trend = kw_dict.get('remove_trend')
+    if remove_trend == None: remove_trend = True
+    
+    trend_always_significant = kw_dict.get('trend_always_significant')
+    if trend_always_significant == None: trend_always_significant = True
 
+    A_small_shuffle = kw_dict.get('A_small_shuffle')
+    if not A_small_shuffle: A_small_shuffle = 1.
+    
+    # extension_type = kw_dict.get('extension_type')
+    # if not extension_type: extension_type = 'AR_LR'
+    
+    # multi_thread_run = kw_dict.get('multi_thread_run')
+    # if not multi_thread_run: multi_thread_run = True
+    
+    generate_toeplitz_matrix = kw_dict.get('generate_toeplitz_matrix')
+    if generate_toeplitz_matrix == None: generate_toeplitz_matrix = False
+
+    return K_surrogates, surrogates, seed, sided_test, remove_trend,trend_always_significant, A_small_shuffle, generate_toeplitz_matrix
 
 ###############################################################################
 ###############################################################################
