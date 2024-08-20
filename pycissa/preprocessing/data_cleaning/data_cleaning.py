@@ -302,4 +302,134 @@ def _fix_missing_samples(t: np.ndarray,
     x_missing  =  np.array(x_missing, dtype=object)    
           
     return final_t, final_x, x_missing
+
+
+def _fix_missing_date_samples(t: np.ndarray, 
+                         x: np.ndarray,
+                           years:              int = 0, 
+                           months:             int = 1, 
+                           days:               int = 0, 
+                           hours:              int = 0,
+                           minutes:            int = 0,
+                           seconds:            int = 0,
+                           input_dateformat:   str = '%Y',
+                           wiggleroom_divisor: int = 2,
+                           missing_value:      int = np.nan
+                           ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    '''
+    Function that finds and corrects misisng dates in the time series.
+    Missing dates result in adding a default value "missing_value" into the input data.
+    
+    **THIS FUNCTION IS A WORK IN PROGRESS. USE WITH EXTREME CAUTION.**
+
+    Parameters
+    ----------
+    t : np.ndarray
+        DESCRIPTION: array of input times/dates.
+    x : np.ndarray
+        DESCRIPTION: array of input data.
+    years : int, optional
+        DESCRIPTION: (ideal) number of years between each timestep in input array t. The default is 0.
+    months : int, optional
+        DESCRIPTION: (ideal) number of months between each timestep in input array t. The default is 1.
+    days : int, optional
+        DESCRIPTION: (ideal) number of days between each timestep in input array t. The default is 0.
+    hours : int, optional
+        DESCRIPTION: (ideal) number of hours between each timestep in input array t. The default is 0.
+    minutes : int, optional
+        DESCRIPTION: (ideal) number of minutes between each timestep in input array t. The default is 0.
+    seconds : int, optional
+        DESCRIPTION: (ideal) number of seconds between each timestep in input array t. The default is 0.
+    input_dateformat : str, optional
+        DESCRIPTION: Datetime string format. The default is '%Y'. See https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes
+    wiggleroom_divisor : int, optional
+        DESCRIPTION: constant which ensures that the datetime has a bit of wiggleroom. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 2.
+    missing_value : int, optional
+        DESCRIPTION: The value which is entered when a missing value is found. The default is np.nan.
+
+    Returns
+    -------
+    final_t : np.ndarray
+        DESCRIPTION: array of corrected time values (i.e. missing values are added)
+    final_x : np.ndarray
+        DESCRIPTION: array of corrected data values (i.e. missing values are added)
+    x_missing : np.ndarray
+        DESCRIPTION: array of values indicating whether a value is added or not. If not, None, if so, the value will be True.
+
+    '''
+    # import datetime
+    from datetime import datetime
+    import copy
+    if wiggleroom_divisor ==0: wiggleroom_divisor = 1e100
+    def add_date_delta(mydate,years,months,days,hours,minutes,seconds,direction):
+        if direction == 'subtract':
+            years *= -1
+            months *= -1
+            days *= -1
+            hours *= -1
+            minutes *= -1
+            seconds *= -1
+        print( "since the replace function will only allow adding integers to the date, we need to think of a better way to handle the wiggleroom. COuld use the relative delta for the wiggleroom? Or define input parameters like we do for year, month, day etc...")
+        mydate = mydate.replace(year=mydate.year+years)
+        mydate = mydate.replace(month=mydate.month+months)
+        mydate = mydate.replace(day=mydate.day+days)
+        mydate = mydate.replace(hour=mydate.hour+hours)
+        mydate = mydate.replace(minute=mydate.minute+minutes)
+        mydate = mydate.replace(second=mydate.second+seconds)
+        return mydate
+    
+    
+    #check that sum is not = 0
+    if not years+months+days+hours+minutes+seconds>0: 
+        raise ValueError('One of the input parameters years, months, weeks, days, hours, minutes, seconds must be greater than zero')
+    
+    t_ = copy.deepcopy(t)
+    t_ = [np.datetime64(dt, 's') for dt in t_]
+    t_ = [dt.astype(datetime) for dt in t_]
+    
+    new_t = []
+    for time_i in t_:
+        if type(time_i) in [str]:
+            new_t.append(datetime.strptime(time_i, input_dateformat))
+        elif type(time_i) in [datetime]:
+            new_t.append(time_i)
+        else:
+            new_t.append(time_i)
+            
+    
+    min_date = min(new_t)
+    max_date = max(new_t)
+
+    # mydate = mydate.replace(day=mydate.day+1)
+    
+    all_dates = []
+    all_x = []
+    x_missing = []
+    current_date = min_date
+    for time_i, x_i in zip(new_t,x):
+        
+        lower_date = add_date_delta(current_date,years/wiggleroom_divisor,months/wiggleroom_divisor,days/wiggleroom_divisor,hours/wiggleroom_divisor,minutes/wiggleroom_divisor,seconds/wiggleroom_divisor,'subtract')
+        upper_date = add_date_delta(current_date,years/wiggleroom_divisor,months/wiggleroom_divisor,days/wiggleroom_divisor,hours/wiggleroom_divisor,minutes/wiggleroom_divisor,seconds/wiggleroom_divisor,'add')
+        if (time_i > lower_date) & (time_i < upper_date):
+            # Here date is within the acceptable range
+            all_dates.append(time_i)
+            all_x.append(x_i)
+            x_missing.append(None)
+            current_date = add_date_delta(current_date,years,months,days,hours,minutes,seconds,'add')
+        else:
+            # Here date is missing
+            while current_date < upper_date:
+                all_dates.append(current_date)
+                if (time_i > lower_date) & (time_i < upper_date):
+                    all_x.append(x_i)
+                    x_missing.append(None)
+                else:
+                    all_x.append(missing_value)
+                    x_missing.append(True)
+                current_date = add_date_delta(current_date,years,months,days,hours,minutes,seconds,'add')
+    final_t    =  np.array(all_dates, dtype=object)    
+    final_x    =  np.array(all_x, dtype=object)  
+    x_missing  =  np.array(x_missing, dtype=object)    
+          
+    return final_t, final_x, x_missing
     

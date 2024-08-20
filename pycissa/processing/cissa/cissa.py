@@ -507,6 +507,95 @@ class Cissa:
         from pycissa.preprocessing.data_cleaning.data_cleaning import detect_nan_data
         self.isnan = detect_nan_data(self.x)
         return self
+    
+    #--------------------------------------------------------------------------
+    #--------------------------------------------------------------------------    
+    def pre_fix_missing_samples_(
+            self,
+            version:              str = 'date', 
+            date_settings:        dict = {'input_dateformat'  :'',
+                                          'years'             :0, 
+                                          'months'            :1, 
+                                          'days'              :0, 
+                                          'hours'             :0,
+                                          'minutes'           :0,
+                                          'seconds'           :0,
+                                          'wiggleroom_divisor':2},
+            numeric_time_settings: dict = {'t_step'    :1,
+                                           'wiggleroom':2
+                                            },
+            missing_value:      int = np.nan
+            ):
+        '''
+        Function that finds and corrects missing values in the time series.
+        Missing dates result in adding a default value "missing_value" into the input data.
+        
+        **THIS FUNCTION IS A WORK IN PROGRESS. USE WITH EXTREME CAUTION.**
+
+        Parameters
+        ----------
+        t : np.ndarray
+            DESCRIPTION: array of input times/dates.
+        x : np.ndarray
+            DESCRIPTION: array of input data.
+        input_dateformat : str
+            DESCRIPTION: Datetime string format. See https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes    
+        years : int, optional
+            DESCRIPTION: (ideal) number of years between each timestep in input array t. The default is 1.
+        months : int, optional
+            DESCRIPTION: (ideal) number of months between each timestep in input array t. The default is 0.
+        days : int, optional
+            DESCRIPTION: (ideal) number of days between each timestep in input array t. The default is 0.
+        hours : int, optional
+            DESCRIPTION: (ideal) number of hours between each timestep in input array t. The default is 0.
+        minutes : int, optional
+            DESCRIPTION: (ideal) number of minutes between each timestep in input array t. The default is 0.
+        seconds : int, optional
+            DESCRIPTION: (ideal) number of seconds between each timestep in input array t. The default is 0.
+        wiggleroom_divisor : int, optional
+            DESCRIPTION: constant which ensures that the datetime has a bit of wiggleroom. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 2.
+        missing_value : int, optional
+            DESCRIPTION: The value which is entered when a missing value is found. The default is np.nan.
+
+        Returns
+        -------
+        final_t : np.ndarray
+            DESCRIPTION: array of corrected time values (i.e. missing values are added)
+        final_x : np.ndarray
+            DESCRIPTION: array of corrected data values (i.e. missing values are added)
+        x_missing : np.ndarray
+            DESCRIPTION: array of values indicating whether a value is added or not. If not, None, if so, the value will be True.
+
+        '''
+
+        if version == 'date':
+            #1) check that the needed settings are present
+            if not date_settings.get('wiggleroom_divisor'): ValueError(f"Input parameter 'wiggleroom_divisor' is a required parameter (which can be set = 0 if desired for an exact date search).")
+            if not date_settings.get('input_dateformat'): ValueError(f"Input parameter 'input_dateformat' is a required parameter which must match the date format of the datetime variable.")
+            if not (date_settings.get('years',0)+date_settings.get('months',0)+date_settings.get('days',0)+date_settings.get('hours',0)+date_settings.get('minutes',0)+date_settings.get('seconds',0)) > 0: ValueError(f"At least one date step must be provided and greater than zero. Please check the 'years', 'months', 'days', 'hours', 'minutes', and 'seconds' in date_settings (Note, some of these may be excluded or zero, but at least one should be provided and >0 )") 
+            #2) check that the date format matches the time data provided
+            #3) run!
+        elif version == 'numeric':
+            #1) check the needed settings are present
+            pass
+        else: raise ValueError(f"Input parameter 'version' shpuld be one of 'date' or 'numeric', depending on the time data type. You entered: {version}.")
+            
+        from pycissa.preprocessing.data_cleaning.data_cleaning import _fix_missing_date_samples   
+        self.t,self.x,self.added_times = _fix_missing_date_samples(
+                                 self.t,
+                                 self.x,
+                                   years=years,
+                                   months=months,
+                                   days=days,
+                                   hours=hours,
+                                   minutes=minutes,
+                                   seconds=seconds,
+                                   input_dateformat=input_dateformat,
+                                   wiggleroom_divisor=wiggleroom_divisor,
+                                   missing_value=missing_value)
+        from pycissa.preprocessing.data_cleaning.data_cleaning import detect_nan_data
+        self.isnan = detect_nan_data(self.x)
+        return self
         
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
