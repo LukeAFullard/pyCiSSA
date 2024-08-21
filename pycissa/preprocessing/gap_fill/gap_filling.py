@@ -516,7 +516,7 @@ def update_imputed_gap_values(x_new: np.ndarray,
     x_old : np.ndarray
         DESCRIPTION: pre-updated time-series
 
-    '''
+    ''' 
     from pycissa.processing.matrix_operations.matrix_operations import run_cissa
     from pycissa.postprocessing.grouping.grouping_functions import generate_grouping, group
     x_old = x_new.copy()
@@ -687,7 +687,7 @@ def fill_timeseries_gaps(t:                          np.ndarray,
                          test_number:                int = 10,
                          test_repeats:               int = 1,
                          z_value:                    float = 1.96,  
-                         component_selection_method: str = 'drop_smallest_proportion',
+                         component_selection_method: str = 'monte_carlo_significant_components',
                          eigenvalue_proportion:      float = 0.95,
                          number_of_groups_to_drop:   int = 1,
                          data_per_unit_period:       int = 1,
@@ -760,7 +760,7 @@ def fill_timeseries_gaps(t:                          np.ndarray,
     z_value : float, optional
         DESCRIPTION: z-value for confidence interval (= 1.96 for a 95% confidence interval, for example)       
     component_selection_method : str, optional
-        DESCRIPTION. Method for choosing the way we drop components from the reconstruction.. The default is 'drop_smallest_proportion'.
+        DESCRIPTION. Method for choosing the way we drop components from the reconstruction. Current options are 'drop_smallest_n', 'drop_smallest_proportion', 'monte_carlo_significant_components'. The default is 'monte_carlo_significant_components'.
     eigenvalue_proportion : float, optional
         DESCRIPTION. only used if component_selection_method == 'drop_smallest_proportion'.
                      if between 0 and 1, the cumulative proportion psd to keep, or if between -1 and 0, a psd proportion threshold to keep a component.

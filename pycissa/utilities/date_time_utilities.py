@@ -15,3 +15,6 @@ month_days = {1:31,   #days in each month
               12:31}
 
 # mydate = mydate.replace(day=mydate.day+1)
+
+# from dateutil.relativedelta import relativedelta
+# mydate + relativedelta(days=31)

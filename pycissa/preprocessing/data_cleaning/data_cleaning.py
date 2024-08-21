@@ -158,8 +158,8 @@ def _fix_censored_data(x: np.ndarray,
             x_censoring.append(None)
     
     
-    x_uncensored = np.array(x_uncensored, dtype=float) 
-    x_censoring  = np.array(x_censoring, dtype=object)   
+    x_uncensored = np.array(x_uncensored, dtype=np.float64) 
+    x_censoring  = np.array(x_censoring, dtype=np.float64)   
 
     ###########################################################################
     ###########################################################################
@@ -175,134 +175,11 @@ def _fix_censored_data(x: np.ndarray,
     ###########################################################################
     ###########################################################################        
     #need to ensure that the final data is float64 and not object    
-    x_uncensored = np.array(x_uncensored, dtype=float)
+    x_uncensored = np.array(x_uncensored, dtype=np.float64)
     return x_uncensored,x_censoring
 
 ###############################################################################
 ###############################################################################
-
-def _fix_missing_samples(t: np.ndarray, 
-                         x: np.ndarray,
-                           years:              int = 0, 
-                           months:             int = 0, 
-                           days:               int = 0, 
-                           hours:              int = 0,
-                           minutes:            int = 0,
-                           seconds:            int = 0,
-                           input_dateformat:   str = '%Y',
-                           wiggleroom_divisor: int = 2,
-                           missing_value:      int = np.nan
-                           ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    '''
-    Function that finds and corrects misisng values in the time series.
-    Missing dates result in adding a default value "missing_value" into the input data.
-    
-    **THIS FUNCTION IS A WORK IN PROGRESS. USE WITH EXTREME CAUTION.**
-
-    Parameters
-    ----------
-    t : np.ndarray
-        DESCRIPTION: array of input times/dates.
-    x : np.ndarray
-        DESCRIPTION: array of input data.
-    years : int, optional
-        DESCRIPTION: (ideal) number of years between each timestep in input array t. The default is 1.
-    months : int, optional
-        DESCRIPTION: (ideal) number of months between each timestep in input array t. The default is 0.
-    days : int, optional
-        DESCRIPTION: (ideal) number of days between each timestep in input array t. The default is 0.
-    hours : int, optional
-        DESCRIPTION: (ideal) number of hours between each timestep in input array t. The default is 0.
-    minutes : int, optional
-        DESCRIPTION: (ideal) number of minutes between each timestep in input array t. The default is 0.
-    seconds : int, optional
-        DESCRIPTION: (ideal) number of seconds between each timestep in input array t. The default is 0.
-    input_dateformat : str, optional
-        DESCRIPTION: Datetime string format. The default is '%Y'. See https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes
-    wiggleroom_divisor : int, optional
-        DESCRIPTION: constant which ensures that the datetime has a bit of wiggleroom. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 2.
-    missing_value : int, optional
-        DESCRIPTION: The value which is entered when a missing value is found. The default is np.nan.
-
-    Returns
-    -------
-    final_t : np.ndarray
-        DESCRIPTION: array of corrected time values (i.e. missing values are added)
-    final_x : np.ndarray
-        DESCRIPTION: array of corrected data values (i.e. missing values are added)
-    x_missing : np.ndarray
-        DESCRIPTION: array of values indicating whether a value is added or not. If not, None, if so, the value will be True.
-
-    '''
-    import datetime
-    from dateutil.relativedelta import relativedelta
-    import copy
-    
-    #check that sum is not = 0
-    if not years+months+days+hours+minutes+seconds>0: 
-        raise ValueError('One of the input parameters years, months, weeks, days, hours, minutes, seconds must be greater than zero')
-    
-    t_ = copy.deepcopy(t)
-    t_ = [np.datetime64(dt, 's') for dt in t_]
-    new_t = []
-    for time_i in t_:
-        if type(time_i) in [str]:
-            new_t.append(datetime.datetime.strptime(time_i, input_dateformat))
-        elif type(time_i) in [datetime.datetime]:
-            new_t.append(time_i)
-        else:
-            new_t.append(time_i)
-            
-    
-    min_date = min(new_t)
-    max_date = max(new_t)
-    date_delta_with_wiggle_room = datetime.timedelta(weeks = 52.1429*years/wiggleroom_divisor + 4.34524*months/wiggleroom_divisor,
-                                    days = days/wiggleroom_divisor,
-                                    hours = hours/wiggleroom_divisor,
-                                    minutes = minutes/wiggleroom_divisor + (seconds/60)/wiggleroom_divisor
-                                    )
-    date_delta_with_wiggle_room = np.timedelta64(date_delta_with_wiggle_room)
-    date_delta = relativedelta(years = years, months = months, days = days, hours = hours, minutes = minutes, seconds = seconds)
-    # date_delta = np.timedelta64(date_delta)
-    
-    all_dates = []
-    all_x = []
-    x_missing = []
-    current_date = min_date
-    for time_i, x_i in zip(new_t,x):
-        
-        print(str(current_date))
-        print(date_delta)
-
-        print(current_date - date_delta_with_wiggle_room)
-        print(time_i)
-        print(current_date + date_delta_with_wiggle_room)
-        print((time_i > current_date - date_delta_with_wiggle_room))
-        print((time_i < current_date + date_delta_with_wiggle_room))
-        
-        if (time_i > current_date - date_delta_with_wiggle_room) & (time_i < current_date + date_delta_with_wiggle_room):
-            # Here date is within the acceptable range
-            all_dates.append(time_i)
-            all_x.append(x_i)
-            x_missing.append(None)
-            current_date += date_delta
-        else:
-            # Here date is missing
-            while current_date < time_i + date_delta_with_wiggle_room:
-                all_dates.append(current_date)
-                if (time_i > current_date - date_delta_with_wiggle_room) & (time_i < current_date + date_delta_with_wiggle_room):
-                    all_x.append(x_i)
-                    x_missing.append(None)
-                else:
-                    all_x.append(missing_value)
-                    x_missing.append(True)
-                current_date += date_delta
-    final_t    =  np.array(all_dates, dtype=object)    
-    final_x    =  np.array(all_x, dtype=object)  
-    x_missing  =  np.array(x_missing, dtype=object)    
-          
-    return final_t, final_x, x_missing
-
 
 def _fix_missing_date_samples(t: np.ndarray, 
                          x: np.ndarray,
@@ -313,7 +190,12 @@ def _fix_missing_date_samples(t: np.ndarray,
                            minutes:            int = 0,
                            seconds:            int = 0,
                            input_dateformat:   str = '%Y',
-                           wiggleroom_divisor: int = 2,
+                           year_delta:         int = 0, 
+                           month_delta:        int = 0, 
+                           day_delta:          int = 14, 
+                           hour_delta:         int = 0,
+                           minute_delta:       int = 0,
+                           second_delta:       int = 0,
                            missing_value:      int = np.nan
                            ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     '''
@@ -342,8 +224,18 @@ def _fix_missing_date_samples(t: np.ndarray,
         DESCRIPTION: (ideal) number of seconds between each timestep in input array t. The default is 0.
     input_dateformat : str, optional
         DESCRIPTION: Datetime string format. The default is '%Y'. See https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes
-    wiggleroom_divisor : int, optional
-        DESCRIPTION: constant which ensures that the datetime has a bit of wiggleroom. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 2.
+    year_delta : int, optional
+        DESCRIPTION: Integer years to build a tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 0.
+    month_delta : int, optional
+        DESCRIPTION: Integer months to build a tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 0.
+    day_delta : int, optional
+        DESCRIPTION: Integer days to build a tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 0.
+    hour_delta : int, optional
+        DESCRIPTION: Integer hours to build a tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 0.
+    minute_delta : int, optional
+        DESCRIPTION: Integer minutes to build a tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 0.
+    second_delta : int, optional
+        DESCRIPTION: Integer seconds to build a tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 0.    
     missing_value : int, optional
         DESCRIPTION: The value which is entered when a missing value is found. The default is np.nan.
 
@@ -359,8 +251,8 @@ def _fix_missing_date_samples(t: np.ndarray,
     '''
     # import datetime
     from datetime import datetime
+    from dateutil.relativedelta import relativedelta
     import copy
-    if wiggleroom_divisor ==0: wiggleroom_divisor = 1e100
     def add_date_delta(mydate,years,months,days,hours,minutes,seconds,direction):
         if direction == 'subtract':
             years *= -1
@@ -369,13 +261,12 @@ def _fix_missing_date_samples(t: np.ndarray,
             hours *= -1
             minutes *= -1
             seconds *= -1
-        print( "since the replace function will only allow adding integers to the date, we need to think of a better way to handle the wiggleroom. COuld use the relative delta for the wiggleroom? Or define input parameters like we do for year, month, day etc...")
-        mydate = mydate.replace(year=mydate.year+years)
-        mydate = mydate.replace(month=mydate.month+months)
-        mydate = mydate.replace(day=mydate.day+days)
-        mydate = mydate.replace(hour=mydate.hour+hours)
-        mydate = mydate.replace(minute=mydate.minute+minutes)
-        mydate = mydate.replace(second=mydate.second+seconds)
+        mydate = mydate + relativedelta(years = years,
+                                        months = months,
+                                        days = days,
+                                        hours = hours,
+                                        minutes = minutes,
+                                        seconds = seconds)
         return mydate
     
     
@@ -390,7 +281,8 @@ def _fix_missing_date_samples(t: np.ndarray,
     new_t = []
     for time_i in t_:
         if type(time_i) in [str]:
-            new_t.append(datetime.strptime(time_i, input_dateformat))
+            try:new_t.append(datetime.strptime(time_i, input_dateformat))
+            except: raise ValueError(f"Input dateformat, {input_dateformat} does not appear to match the format of the provided dates (e.g. {new_t[0]}). Please correct this.")
         elif type(time_i) in [datetime]:
             new_t.append(time_i)
         else:
@@ -408,28 +300,123 @@ def _fix_missing_date_samples(t: np.ndarray,
     current_date = min_date
     for time_i, x_i in zip(new_t,x):
         
-        lower_date = add_date_delta(current_date,years/wiggleroom_divisor,months/wiggleroom_divisor,days/wiggleroom_divisor,hours/wiggleroom_divisor,minutes/wiggleroom_divisor,seconds/wiggleroom_divisor,'subtract')
-        upper_date = add_date_delta(current_date,years/wiggleroom_divisor,months/wiggleroom_divisor,days/wiggleroom_divisor,hours/wiggleroom_divisor,minutes/wiggleroom_divisor,seconds/wiggleroom_divisor,'add')
-        if (time_i > lower_date) & (time_i < upper_date):
+        lower_date = add_date_delta(current_date,year_delta,month_delta,day_delta,hour_delta,minute_delta,second_delta,'subtract')
+        upper_date = add_date_delta(current_date,year_delta,month_delta,day_delta,hour_delta,minute_delta,second_delta,'add')
+        if (time_i >= lower_date) & (time_i <= upper_date):
             # Here date is within the acceptable range
             all_dates.append(time_i)
             all_x.append(x_i)
             x_missing.append(None)
             current_date = add_date_delta(current_date,years,months,days,hours,minutes,seconds,'add')
         else:
-            # Here date is missing
-            while current_date < upper_date:
+            stop_date = add_date_delta(time_i,year_delta,month_delta,day_delta,hour_delta,minute_delta,second_delta,'add')
+            while current_date <= stop_date:
                 all_dates.append(current_date)
-                if (time_i > lower_date) & (time_i < upper_date):
+                if (time_i >= lower_date) & (time_i <= upper_date):
                     all_x.append(x_i)
                     x_missing.append(None)
                 else:
                     all_x.append(missing_value)
                     x_missing.append(True)
                 current_date = add_date_delta(current_date,years,months,days,hours,minutes,seconds,'add')
+                lower_date = add_date_delta(current_date,year_delta,month_delta,day_delta,hour_delta,minute_delta,second_delta,'subtract')
+                upper_date = add_date_delta(current_date,year_delta,month_delta,day_delta,hour_delta,minute_delta,second_delta,'add')
+                
     final_t    =  np.array(all_dates, dtype=object)    
-    final_x    =  np.array(all_x, dtype=object)  
-    x_missing  =  np.array(x_missing, dtype=object)    
+    final_x    =  np.array(all_x,     dtype=np.float64)  
+    x_missing  =  np.array(x_missing, dtype=np.float64)    
+          
+    return final_t, final_x, x_missing
+
+
+def _fix_missing_numeric_samples(t: np.ndarray, 
+                           x: np.ndarray,
+                           t_step:             int|float = 1., 
+                           wiggleroom:         int|float = 0.99, 
+                           missing_value:      int = np.nan
+                           ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    '''
+    Function that finds and corrects misisng dates in the time series.
+    Missing dates result in adding a default value "missing_value" into the input data.
+    
+    **THIS FUNCTION IS A WORK IN PROGRESS. USE WITH EXTREME CAUTION.**
+
+    Parameters
+    ----------
+    t : np.ndarray
+        DESCRIPTION: array of input times/dates.
+    x : np.ndarray
+        DESCRIPTION: array of input data.
+    t_step : int|float, optional
+        DESCRIPTION: numeric value of the time step. The default is 1.   
+    wiggleroom : int|float, optional
+        DESCRIPTION: Numeric value for the 'wiggle room' associated with a tolerance tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a time step of 2 and the wiggle room is 0.2, then a series of times 2,4,6,7.9,10,... would be OK, but 2,4,6,7.7,10 would not and would correct the time value to 2,4,6,8,10. The default is 0.99.        
+    missing_value : int, optional
+        DESCRIPTION: The value which is entered when a missing value is found. The default is np.nan.
+
+    Returns
+    -------
+    final_t : np.ndarray
+        DESCRIPTION: array of corrected time values (i.e. missing values are added)
+    final_x : np.ndarray
+        DESCRIPTION: array of corrected data values (i.e. missing values are added)
+    x_missing : np.ndarray
+        DESCRIPTION: array of values indicating whether a value is added or not. If not, None, if so, the value will be True.
+
+    '''
+    # import datetime
+    from datetime import datetime
+    from dateutil.relativedelta import relativedelta
+    import copy
+    def add_date_delta(mystep,tstep,direction):
+        if direction == 'subtract':
+            tstep *= -1.          
+        mystep = mystep + tstep
+        return mystep
+    
+    
+    #check that t_step is not = 0
+    if not t_step>0: 
+        raise ValueError('t_step must be greater than zero')
+
+    new_t = copy.deepcopy(t)
+
+    min_t = min(new_t)
+    max_t = max(new_t)
+
+    # mydate = mydate.replace(day=mydate.day+1)
+    
+    all_t = []
+    all_x = []
+    x_missing = []
+    current_t = min_t
+    for time_i, x_i in zip(new_t,x):
+        
+        lower_t = add_date_delta(current_t,wiggleroom,'subtract')
+        upper_t = add_date_delta(current_t,wiggleroom,'add')
+        if (time_i >= lower_t) & (time_i <= upper_t):
+            # Here date is within the acceptable range
+            all_t.append(time_i)
+            all_x.append(x_i)
+            x_missing.append(None)
+            current_t = add_date_delta(current_t,t_step,'add')
+        else:
+            stop_t = add_date_delta(time_i,wiggleroom,'add')
+            while current_t <= stop_t:
+                all_t.append(current_t)
+                if (time_i >= lower_t) & (time_i <= upper_t):
+                    all_x.append(x_i)
+                    x_missing.append(None)
+                else:
+                    all_x.append(missing_value)
+                    x_missing.append(True)
+                current_t = add_date_delta(current_t,t_step,'add')
+                lower_t = add_date_delta(current_t,wiggleroom,'subtract')
+                upper_t = add_date_delta(current_t,wiggleroom,'add')
+                
+    final_t    =  np.array(all_t, dtype=np.float64)    
+    final_x    =  np.array(all_x,     dtype=np.float64)  
+    x_missing  =  np.array(x_missing, dtype=np.float64)    
           
     return final_t, final_x, x_missing
     

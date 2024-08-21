@@ -193,7 +193,7 @@ class Cissa:
                   test_number:                int = 10,
                   test_repeats:               int = 1,
                   z_value:                    float = 1.96,
-                  component_selection_method: str = 'drop_smallest_proportion',
+                  component_selection_method: str = 'monte_carlo_significant_components',
                   eigenvalue_proportion:      float = 0.95,
                   number_of_groups_to_drop:   int = 1,
                   data_per_unit_period:       int = 1,
@@ -266,7 +266,7 @@ class Cissa:
         z_value : float, optional
             DESCRIPTION: z-value for confidence interval (= 1.96 for a 95% confidence interval, for example)           
         component_selection_method : str, optional
-            DESCRIPTION. Method for choosing the way we drop components from the reconstruction. The default is 'drop_smallest_proportion'.
+            DESCRIPTION. Method for choosing the way we drop components from the reconstruction. Current options are 'drop_smallest_n', 'drop_smallest_proportion', 'monte_carlo_significant_components'. The default is 'monte_carlo_significant_components'.
         eigenvalue_proportion : float, optional
             DESCRIPTION. only used if component_selection_method == 'drop_smallest_proportion'.
                          if between 0 and 1, the cumulative proportion psd to keep, or if between -1 and 0, a psd proportion threshold to keep a component.
@@ -438,79 +438,10 @@ class Cissa:
         return self
     #--------------------------------------------------------------------------
     #--------------------------------------------------------------------------    
-    def pre_fix_missing_samples(
-            self,
-            input_dateformat:     str,
-              years:              int = 0, 
-              months:             int = 0, 
-              days:               int = 0, 
-              hours:              int = 0,
-              minutes:            int = 0,
-              seconds:            int = 0,
-              wiggleroom_divisor: int = 2,
-              missing_value:      int = np.nan
-            ):
-        '''
-        Function that finds and corrects missing values in the time series.
-        Missing dates result in adding a default value "missing_value" into the input data.
-        
-        **THIS FUNCTION IS A WORK IN PROGRESS. USE WITH EXTREME CAUTION.**
-
-        Parameters
-        ----------
-        t : np.ndarray
-            DESCRIPTION: array of input times/dates.
-        x : np.ndarray
-            DESCRIPTION: array of input data.
-        input_dateformat : str
-            DESCRIPTION: Datetime string format. See https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes    
-        years : int, optional
-            DESCRIPTION: (ideal) number of years between each timestep in input array t. The default is 1.
-        months : int, optional
-            DESCRIPTION: (ideal) number of months between each timestep in input array t. The default is 0.
-        days : int, optional
-            DESCRIPTION: (ideal) number of days between each timestep in input array t. The default is 0.
-        hours : int, optional
-            DESCRIPTION: (ideal) number of hours between each timestep in input array t. The default is 0.
-        minutes : int, optional
-            DESCRIPTION: (ideal) number of minutes between each timestep in input array t. The default is 0.
-        seconds : int, optional
-            DESCRIPTION: (ideal) number of seconds between each timestep in input array t. The default is 0.
-        wiggleroom_divisor : int, optional
-            DESCRIPTION: constant which ensures that the datetime has a bit of wiggleroom. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 2.
-        missing_value : int, optional
-            DESCRIPTION: The value which is entered when a missing value is found. The default is np.nan.
-
-        Returns
-        -------
-        final_t : np.ndarray
-            DESCRIPTION: array of corrected time values (i.e. missing values are added)
-        final_x : np.ndarray
-            DESCRIPTION: array of corrected data values (i.e. missing values are added)
-        x_missing : np.ndarray
-            DESCRIPTION: array of values indicating whether a value is added or not. If not, None, if so, the value will be True.
-
-        '''
-        from pycissa.preprocessing.data_cleaning.data_cleaning import _fix_missing_samples
-        self.t,self.x,self.added_times = _fix_missing_samples(
-                                 self.t,
-                                 self.x,
-                                   years=years,
-                                   months=months,
-                                   days=days,
-                                   hours=hours,
-                                   minutes=minutes,
-                                   seconds=seconds,
-                                   input_dateformat=input_dateformat,
-                                   wiggleroom_divisor=wiggleroom_divisor,
-                                   missing_value=missing_value)
-        from pycissa.preprocessing.data_cleaning.data_cleaning import detect_nan_data
-        self.isnan = detect_nan_data(self.x)
-        return self
     
     #--------------------------------------------------------------------------
     #--------------------------------------------------------------------------    
-    def pre_fix_missing_samples_(
+    def pre_fix_missing_samples(
             self,
             version:              str = 'date', 
             date_settings:        dict = {'input_dateformat'  :'',
@@ -520,9 +451,15 @@ class Cissa:
                                           'hours'             :0,
                                           'minutes'           :0,
                                           'seconds'           :0,
-                                          'wiggleroom_divisor':2},
-            numeric_time_settings: dict = {'t_step'    :1,
-                                           'wiggleroom':2
+                                          'year_delta'        :0, 
+                                          'month_delta'       :0, 
+                                          'day_delta'         :14, 
+                                          'hour_delta'        :0,
+                                          'minute_delta'      :0,
+                                          'second_delta'      :0,
+                                          },
+            numeric_time_settings: dict = {'t_step'    :1.,
+                                           'wiggleroom':0.99
                                             },
             missing_value:      int = np.nan
             ):
@@ -534,26 +471,48 @@ class Cissa:
 
         Parameters
         ----------
-        t : np.ndarray
-            DESCRIPTION: array of input times/dates.
-        x : np.ndarray
-            DESCRIPTION: array of input data.
-        input_dateformat : str
-            DESCRIPTION: Datetime string format. See https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes    
-        years : int, optional
-            DESCRIPTION: (ideal) number of years between each timestep in input array t. The default is 1.
-        months : int, optional
-            DESCRIPTION: (ideal) number of months between each timestep in input array t. The default is 0.
-        days : int, optional
-            DESCRIPTION: (ideal) number of days between each timestep in input array t. The default is 0.
-        hours : int, optional
-            DESCRIPTION: (ideal) number of hours between each timestep in input array t. The default is 0.
-        minutes : int, optional
-            DESCRIPTION: (ideal) number of minutes between each timestep in input array t. The default is 0.
-        seconds : int, optional
-            DESCRIPTION: (ideal) number of seconds between each timestep in input array t. The default is 0.
-        wiggleroom_divisor : int, optional
-            DESCRIPTION: constant which ensures that the datetime has a bit of wiggleroom. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 2.
+        self : Cissa object
+            DESCRIPTION: Cissa object
+        version : str, optional
+            DESCRIPTION: String describing the type of time data. One of 'date' or 'numeric'. The default is 'date'.
+        date_settings : dict, optional
+            DESCRIPTION: Dictionary of date settings as defined below:
+                                {
+                                years : int, optional
+                                    DESCRIPTION: (ideal) number of years between each timestep in input array t. The default is 0.
+                                months : int, optional
+                                    DESCRIPTION: (ideal) number of months between each timestep in input array t. The default is 1.
+                                days : int, optional
+                                    DESCRIPTION: (ideal) number of days between each timestep in input array t. The default is 0.
+                                hours : int, optional
+                                    DESCRIPTION: (ideal) number of hours between each timestep in input array t. The default is 0.
+                                minutes : int, optional
+                                    DESCRIPTION: (ideal) number of minutes between each timestep in input array t. The default is 0.
+                                seconds : int, optional
+                                    DESCRIPTION: (ideal) number of seconds between each timestep in input array t. The default is 0.
+                                input_dateformat : str, optional
+                                    DESCRIPTION: Datetime string format. The default is '%Y'. See https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes
+                                year_delta : int, optional
+                                    DESCRIPTION: Integer years to build a tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 0.
+                                month_delta : int, optional
+                                    DESCRIPTION: Integer months to build a tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 0.
+                                day_delta : int, optional
+                                    DESCRIPTION: Integer days to build a tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 0.
+                                hour_delta : int, optional
+                                    DESCRIPTION: Integer hours to build a tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 0.
+                                minute_delta : int, optional
+                                    DESCRIPTION: Integer minutes to build a tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 0.
+                                second_delta : int, optional
+                                    DESCRIPTION: Integer seconds to build a tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a monthly sampling frequency on the 15th of the month, but one sample is on the 14th, we don't want to say that the sample is missing. The default is 0.    
+                                    }
+        numeric_time_settings : dict, optional                                
+            Dictionary of date settings as defined below:
+                               {
+                               t_step : int|float, optional
+                                   DESCRIPTION: numeric value of the time step. The default is 1.   
+                               wiggleroom : int|float, optional
+                                   DESCRIPTION: Numeric value for the 'wiggle room' associated with a tolerance tolerance interval around the desired timestep. If the time is within the "wiggleroom", then the time is OK. For example, if we have a time step of 2 and the wiggle room is 0.2, then a series of times 2,4,6,7.9,10,... would be OK, but 2,4,6,7.7,10 would not and would correct the time value to 2,4,6,8,10. The default is 0.99.        
+                                   }
         missing_value : int, optional
             DESCRIPTION: The value which is entered when a missing value is found. The default is np.nan.
 
@@ -570,29 +529,38 @@ class Cissa:
 
         if version == 'date':
             #1) check that the needed settings are present
-            if not date_settings.get('wiggleroom_divisor'): ValueError(f"Input parameter 'wiggleroom_divisor' is a required parameter (which can be set = 0 if desired for an exact date search).")
-            if not date_settings.get('input_dateformat'): ValueError(f"Input parameter 'input_dateformat' is a required parameter which must match the date format of the datetime variable.")
             if not (date_settings.get('years',0)+date_settings.get('months',0)+date_settings.get('days',0)+date_settings.get('hours',0)+date_settings.get('minutes',0)+date_settings.get('seconds',0)) > 0: ValueError(f"At least one date step must be provided and greater than zero. Please check the 'years', 'months', 'days', 'hours', 'minutes', and 'seconds' in date_settings (Note, some of these may be excluded or zero, but at least one should be provided and >0 )") 
-            #2) check that the date format matches the time data provided
-            #3) run!
+            from pycissa.preprocessing.data_cleaning.data_cleaning import _fix_missing_date_samples 
+            self.t,self.x,self.added_times = _fix_missing_date_samples(
+                                     self.t,
+                                     self.x,
+                                       years             = date_settings.get('years',0),
+                                       months            = date_settings.get('months',0),
+                                       days              = date_settings.get('days',0),
+                                       hours             = date_settings.get('hours',0),
+                                       minutes           = date_settings.get('minutes',0),
+                                       seconds           = date_settings.get('seconds',0),
+                                       input_dateformat  = date_settings.get('input_dateformat',0),
+                                       year_delta        = date_settings.get('year_delta',0),
+                                       month_delta       = date_settings.get('month_delta',0),
+                                       day_delta         = date_settings.get('day_delta',0),
+                                       hour_delta        = date_settings.get('hour_delta',0),
+                                       minute_delta      = date_settings.get('minute_delta',0),
+                                       second_delta      = date_settings.get('second_delta',0),
+                                       missing_value     = missing_value)
+            
         elif version == 'numeric':
-            #1) check the needed settings are present
-            pass
+            from pycissa.preprocessing.data_cleaning.data_cleaning import _fix_missing_numeric_samples 
+            self.t,self.x,self.added_times = _fix_missing_numeric_samples(
+                                        self.t, 
+                                        self.x,
+                                       t_step         = numeric_time_settings.get('t_step',1), 
+                                       wiggleroom     = numeric_time_settings.get('wiggleroom',0.99), 
+                                       missing_value  = missing_value
+                                       )
         else: raise ValueError(f"Input parameter 'version' shpuld be one of 'date' or 'numeric', depending on the time data type. You entered: {version}.")
             
-        from pycissa.preprocessing.data_cleaning.data_cleaning import _fix_missing_date_samples   
-        self.t,self.x,self.added_times = _fix_missing_date_samples(
-                                 self.t,
-                                 self.x,
-                                   years=years,
-                                   months=months,
-                                   days=days,
-                                   hours=hours,
-                                   minutes=minutes,
-                                   seconds=seconds,
-                                   input_dateformat=input_dateformat,
-                                   wiggleroom_divisor=wiggleroom_divisor,
-                                   missing_value=missing_value)
+          
         from pycissa.preprocessing.data_cleaning.data_cleaning import detect_nan_data
         self.isnan = detect_nan_data(self.x)
         return self
@@ -873,7 +841,7 @@ class Cissa:
         #check that all necessary input variables exist 
         necessary_attributes = ["psd","L","results"]
         for attr_i in necessary_attributes:
-            if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please fun the pycissa fit method before running the run_frequency_time_analysis method.")
+            if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please run the pycissa fit method before running the run_frequency_time_analysis method.")
         
         mc_results, figure_monte_carlo = run_monte_carlo_test(x = self.x,
                              L = self.L,
