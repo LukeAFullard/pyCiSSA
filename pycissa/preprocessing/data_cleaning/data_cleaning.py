@@ -296,7 +296,7 @@ def _fix_missing_date_samples(t: np.ndarray,
     
     if start_date != 'min':
         # in this case, type should be datetime.datetime
-        if not type(start_date) == datetime: raise ValueError(f"If start_date is not 'min' then a datetime object must be provided. Current types is {type(start_date)}") 
+        if not type(start_date) == datetime: raise TypeError(f"If start_date is not 'min' then a datetime object must be provided. Current types is {type(start_date)}") 
             
         #make the start date the provided date
         min_date = start_date
