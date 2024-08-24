@@ -440,10 +440,12 @@ class Cissa:
     #--------------------------------------------------------------------------    
     
     #--------------------------------------------------------------------------
-    #--------------------------------------------------------------------------    
+    #-------------------------------------------------------------------------- 
+    from datetime import datetime
     def pre_fix_missing_samples(
             self,
             version:              str = 'date', 
+            start_date:           str|datetime = 'min',
             date_settings:        dict = {'input_dateformat'  :'',
                                           'years'             :0, 
                                           'months'            :1, 
@@ -475,6 +477,8 @@ class Cissa:
             DESCRIPTION: Cissa object
         version : str, optional
             DESCRIPTION: String describing the type of time data. One of 'date' or 'numeric'. The default is 'date'.
+        start_date : str|datetime    
+            DESCRIPTION: Only used if version = 'date'. If start_date = 'min' then the minimum date is used, otherwise the given datetime is taken as the first required time. The default is 'min'.
         date_settings : dict, optional
             DESCRIPTION: Dictionary of date settings as defined below:
                                 {
@@ -534,6 +538,7 @@ class Cissa:
             self.t,self.x,self.added_times = _fix_missing_date_samples(
                                      self.t,
                                      self.x,
+                                     start_date,
                                        years             = date_settings.get('years',0),
                                        months            = date_settings.get('months',0),
                                        days              = date_settings.get('days',0),

@@ -180,9 +180,10 @@ def _fix_censored_data(x: np.ndarray,
 
 ###############################################################################
 ###############################################################################
-
+from datetime import datetime
 def _fix_missing_date_samples(t: np.ndarray, 
                          x: np.ndarray,
+                         start_date:           str|datetime = 'min',
                            years:              int = 0, 
                            months:             int = 1, 
                            days:               int = 0, 
@@ -210,6 +211,8 @@ def _fix_missing_date_samples(t: np.ndarray,
         DESCRIPTION: array of input times/dates.
     x : np.ndarray
         DESCRIPTION: array of input data.
+    start_date : str|datetime    
+        DESCRIPTION: If = 'min' then the minimum date is used, otherwise the given datetime is taken as the first required time. The default is 'min'.
     years : int, optional
         DESCRIPTION: (ideal) number of years between each timestep in input array t. The default is 0.
     months : int, optional
@@ -250,7 +253,6 @@ def _fix_missing_date_samples(t: np.ndarray,
 
     '''
     # import datetime
-    from datetime import datetime
     from dateutil.relativedelta import relativedelta
     import copy
     def add_date_delta(mydate,years,months,days,hours,minutes,seconds,direction):
@@ -291,6 +293,16 @@ def _fix_missing_date_samples(t: np.ndarray,
     
     min_date = min(new_t)
     max_date = max(new_t)
+    
+    if start_date != 'min':
+        #make the start date the provided date
+        min_date = start_date
+        #now remove all times that are less than the start date
+        lower_start_date = add_date_delta(min_date,year_delta,month_delta,day_delta,hour_delta,minute_delta,second_delta,'subtract')
+        ok_times = [True if x >= lower_start_date else False for x in new_t]
+        x = x[ok_times]
+        new_t = [x for x in new_t if x >= lower_start_date ]
+        
 
     # mydate = mydate.replace(day=mydate.day+1)
     
