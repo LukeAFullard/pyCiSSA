@@ -221,15 +221,12 @@ def plot_time_series_and_acf_pacf(t:                np.ndarray,
                       missing=missing,
                       zero=zero,
                       auto_ylims=auto_ylims, 
-                      bartlett_confint=bartlett_confint
+                      bartlett_confint=bartlett_confint,
+                      vlines_kwargs = {'colors':'black',
+                                       'linewidths':(0.5,)}
                       )
     ax[1].set_title('Autocorrelation Function (ACF)', fontsize=title_size)
-    # Customize the appearance of the vertical lines
-    for line in ax[1].get_lines():
-        # Check if the line is vertical (which is the confidence interval line)
-        if line.get_linestyle() == '--':
-            line.set_linewidth(5)  # Set the line width to 1 pt
-            line.set_color('black')  # Set the line color to black
+
             
     # Plot PACF
     tsaplots.plot_pacf(x, 
@@ -239,13 +236,11 @@ def plot_time_series_and_acf_pacf(t:                np.ndarray,
                        alpha=alpha,
                        method = pacf_method,
                        use_vlines=use_vlines,
+                       vlines_kwargs = {'colors':'black',
+                                        'linewidths':(0.5,)},
                        zero=zero)
     ax[2].set_title('Partial Autocorrelation Function (PACF)', fontsize=title_size)
-    # Customize the appearance of the vertical lines
-    for line in ax[2].get_lines():
-        # Check if the line is vertical (which is the confidence interval line)
-        if line.get_linestyle() == '--':
-            line.set_linewidth(0.5)  # Set the line width to 1 pt
+
             
     plt.tight_layout()
     
