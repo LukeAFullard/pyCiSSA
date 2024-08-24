@@ -138,7 +138,7 @@ class Cissa:
 
         '''
         #----------------------------------------------------------------------
-        #ensure data is uncensored or nan
+        #ensure data is not uncensored or nan
         if self.censored:  raise ValueError("Censored data detected. Please run pre_fix_censored_data before fitting.")
         if self.isnan: raise ValueError("WARNING: nan data detected. Please run pre_fill_gaps before fitting.")
         #----------------------------------------------------------------------
@@ -865,11 +865,176 @@ class Cissa:
                              generate_toeplitz_matrix=generate_toeplitz_matrix
                                  )
         self.results.get('cissa').update(mc_results)
+        self.results['cissa']['model parameters'].update({'monte_carlo_surrogate_type':surrogates}) 
+        self.results['cissa']['model parameters'].update({'monte_carlo_alpha':alpha}) 
         self.figures.get('cissa').update({'figure_monte_carlo':figure_monte_carlo})
+        
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
-    
+    def plot_autocorrelation(self,
+                                noise_components: list|None = None, 
+                                monte_carlo_noise:bool = False,
+                                acf_lags:         int|list|None=None, 
+                                pacf_lags:        int|list|None=None, 
+                                alpha:            float=0.05, 
+                                use_vlines:       bool=True, 
+                                adjusted:         bool=False, 
+                                fft:              bool=False,
+                                missing:          str='none',
+                                zero:             bool=True, 
+                                auto_ylims:       bool=False, 
+                                bartlett_confint: bool=True,
+                                pacf_method:      str='ywm',
+                                acf_color:        str='blue', 
+                                pacf_color:       str='blue', 
+                                title_size:       float|int=14, 
+                                label_size:       float|int=12
+                                ):
+        '''
+        Function to generate and return a figure with three subplots: 
+            1) time series data, 
+            2) the autocorrelation function of the data, 
+            3) the partial autocorrelation function of the data.
+        Option to create a second plot with noise components after running cissa.
+
+        Parameters
+        ----------
+        self.t : np.ndarray
+            DESCRIPTION: array of input times/dates.
+        self.x : np.ndarray
+            DESCRIPTION: array of input data.
+        noise_components : list|None, optional
+            DESCRIPTION. The default is None. A list of noise components. If provided a second figure will be created with the autocorrelation of the sum of all noise components in the noise_components list.
+        monte_carlo_noise : bool, optional
+            DESCRIPTION. The default is False. If True, the noise_components are ignored and the components that fail the monte carlo analysis are combined and used as noise.
+        acf_lags : int|list|None, optional
+            DESCRIPTION. The default is None. An int or array of acf lag values, used on horizontal axis. If None, half the time series length is used as lags.
+        pacf_lags : int|list|None, optional
+            DESCRIPTION. The default is None. An int or array of acf lag values, used on horizontal axis. If None, acf_lags is used as lags.
+        alpha : float, optional
+            DESCRIPTION. The default is 0.05. If a number is given, the confidence intervals for the given level are returned. For instance if alpha=.05, 95 % confidence intervals are returned where the standard deviation is computed according to Bartlett’s formula. If None, no confidence intervals are plotted.
+        use_vlines : bool, optional
+            DESCRIPTION. The default is True. If True, vertical lines and markers are plotted. If False, only markers are plotted.
+        adjusted : bool, optional
+            DESCRIPTION. The default is False. For acf, if True, then denominators for autocovariance are n-k, otherwise n
+        fft : bool, optional
+            DESCRIPTION. The default is False. For acf, if True, computes the ACF via FFT.
+        missing : str, optional
+            DESCRIPTION. The default is 'none'. A string in [‘none’, ‘raise’, ‘conservative’, ‘drop’] specifying how the NaNs are to be treated.
+        zero : bool, optional
+            DESCRIPTION. The default is True. Flag indicating whether to include the 0-lag autocorrelation. 
+        auto_ylims : bool, optional
+            DESCRIPTION. The default is False. If True, adjusts automatically the y-axis limits to ACF values.
+        bartlett_confint : bool, optional
+            DESCRIPTION. The default is True. Confidence intervals for ACF values are generally placed at 2 standard errors around r_k. The formula used for standard error depends upon the situation. If the autocorrelations are being used to test for randomness of residuals as part of the ARIMA routine, the standard errors are determined assuming the residuals are white noise. The approximate formula for any lag is that standard error of each r_k = 1/sqrt(N). See section 9.4 of [1] for more details on the 1/sqrt(N) result. For more elementary discussion, see section 5.3.2 in [2]. For the ACF of raw data, the standard error at a lag k is found as if the right model was an MA(k-1). This allows the possible interpretation that if all autocorrelations past a certain lag are within the limits, the model might be an MA of order defined by the last significant autocorrelation. In this case, a moving average model is assumed for the data and the standard errors for the confidence intervals should be generated using Bartlett’s formula. For more details on Bartlett formula result, see section 7.2 in [1]. [1] Brockwell and Davis, 1987. Time Series Theory and Methods [2] Brockwell and Davis, 2010. Introduction to Time Series and Forecasting, 2nd edition.
+        pacf_method : str, optional
+            DESCRIPTION. The default is 'ywm'. Specifies which method for the calculations to use:
+                                                “ywm” or “ywmle” : Yule-Walker without adjustment. Default.
+                                                “yw” or “ywadjusted” : Yule-Walker with sample-size adjustment in denominator for acovf. Default.
+                                                “ols” : regression of time series on lags of it and on constant.
+                                                “ols-inefficient” : regression of time series on lags using a single common sample to estimate all pacf coefficients.
+                                                “ols-adjusted” : regression of time series on lags with a bias adjustment.
+                                                “ld” or “ldadjusted” : Levinson-Durbin recursion with bias correction.
+                                                “ldb” or “ldbiased” : Levinson-Durbin recursion without bias correction.
+        acf_color : str, optional
+            DESCRIPTION. The default is 'blue'. Colour of the acf plot markers.
+        pacf_color : str, optional
+            DESCRIPTION. The default is 'blue'. Colour of the pacf plot markers.
+        title_size : float|int, optional
+            DESCRIPTION. The default is 14. 
+        label_size : float|int, optional
+            DESCRIPTION. The default is 12.
+
+        Returns
+        -------
+        fig : matplotlib figure
+            DESCRIPTION. Figure of time series, acf, pacf.
+
+        '''
+        #----------------------------------------------------------------------
+        #ensure data is not uncensored or nan
+        if self.censored:  raise ValueError("Censored data detected. Please run pre_fix_censored_data before fitting.")
+        if self.isnan: raise ValueError("WARNING: nan data detected. Please run pre_fill_gaps before fitting.")
+        #----------------------------------------------------------------------
+        from pycissa.postprocessing.statistics.autocorrelation_function import plot_time_series_and_acf_pacf
+        
+        fig = plot_time_series_and_acf_pacf(self.t,self.x,
+                                          acf_lags=acf_lags,
+                                          pacf_lags=pacf_lags,
+                                          alpha=alpha,
+                                          use_vlines=use_vlines,
+                                          adjusted=adjusted,
+                                          fft=fft,
+                                          missing=missing,
+                                          zero=zero,
+                                          auto_ylims=auto_ylims,
+                                          bartlett_confint=bartlett_confint,
+                                          pacf_method=pacf_method,
+                                          acf_color=acf_color,
+                                          pacf_color=pacf_color,
+                                          title_size=title_size,
+                                          label_size=label_size
+                                          )
+        self.figures.get('cissa').update({'figure_autocorrelation':fig})
+        
+        
+        ######################################################################
+        if monte_carlo_noise:
+            #check that fit has been run
+            necessary_attributes = ["results"]
+            for attr_i in necessary_attributes:
+                if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please fun the pycissa fit method before running the plot_autocorrelation method with noise components.")
+            
+            #check that monte carlo has been run
+            monte_carlo_complete = self.results['cissa']['components']['trend'].get('monte_carlo',False)
+            if not monte_carlo_complete:raise ValueError(f"Please run the post_run_monte_carlo_analysis method before running the plot_autocorrelation method with monte_carlo_noise = True.")
+
+            
+            monte_carlo_type = self.results['cissa']['model parameters']['monte_carlo_surrogate_type']
+            monte_carlo_alpha = self.results['cissa']['model parameters']['monte_carlo_alpha']
+            noise_components = []
+            for key_j in self.results['cissa']['components'].keys():
+                if not self.results['cissa']['components'][key_j]['monte_carlo'][monte_carlo_type]['alpha'][monte_carlo_alpha]['pass']:
+                    noise_components.append(self.results['cissa']['components'][key_j]['array_position'])
+        ######################################################################    
+
+            
+        
+        ######################################################################
+        if noise_components is not None:
+            #check that fit has been run
+            necessary_attributes = ["results"]
+            for attr_i in necessary_attributes:
+                if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please fun the pycissa fit method before running the plot_autocorrelation method with noise components.")
+            
+            
+            noise_array = np.empty(self.results['cissa']['components']['trend']['reconstructed_data'].shape)
+            for key_j in self.results['cissa']['components'].keys():
+                if self.results['cissa']['components'][key_j]['array_position'] in noise_components:
+                    noise_array += self.results['cissa']['components'][key_j]['reconstructed_data']
+         
+            fig2 = plot_time_series_and_acf_pacf(self.t,noise_array,
+                                              acf_lags=acf_lags,
+                                              pacf_lags=pacf_lags,
+                                              alpha=alpha,
+                                              use_vlines=use_vlines,
+                                              adjusted=adjusted,
+                                              fft=fft,
+                                              missing=missing,
+                                              zero=zero,
+                                              auto_ylims=auto_ylims,
+                                              bartlett_confint=bartlett_confint,
+                                              pacf_method=pacf_method,
+                                              acf_color=acf_color,
+                                              pacf_color=pacf_color,
+                                              title_size=title_size,
+                                              label_size=label_size
+                                              )
+            self.figures.get('cissa').update({'figure_autocorrelation_noise':fig2}) 
+        ######################################################################
+        return self
+                
 
 
     #--------------------------------------------------------------------------
@@ -889,8 +1054,9 @@ class Cissa:
      
     #List of stuff to add in here
     '''  
-    remove noise
-    grouping
+    auto remove noise
+    auto remove trend 
+    auto 
     predict method (TO DO, maybe using AutoTS or MAPIE?)
     calculate statistics for each component
     general plot (OG data, trend, periodic, noise/residual)

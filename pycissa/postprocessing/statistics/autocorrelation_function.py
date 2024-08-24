@@ -132,7 +132,7 @@ def plot_time_series_and_acf_pacf(t:                np.ndarray,
                                   pacf_color:       str='blue', 
                                   title_size:       float|int=14, 
                                   label_size:       float|int=12
-                                  ) -> plt.figure.Figure:
+                                  ):
     '''
     Function to generate and return a figure with three subplots: 
         1) time series data, 
@@ -201,18 +201,18 @@ def plot_time_series_and_acf_pacf(t:                np.ndarray,
         pacf_lags = acf_lags
     
     # Create a figure and axes
-    fig, axs = plt.subplots(3, 1, figsize=(10, 15), sharex=True)
+    fig, ax = plt.subplots(3, 1, figsize=(10, 15), sharex=False)
     
     # Plot raw time series data
-    axs[0].plot(t, x, label='Time Series Data', color='black')
-    axs[0].set_title('Raw Time Series Data', fontsize=title_size)
-    axs[0].set_ylabel('Value', fontsize=label_size)
-    axs[0].legend()
+    ax[0].plot(t, x, label='Time Series Data', color='black')
+    ax[0].set_title('Raw Time Series Data', fontsize=title_size)
+    ax[0].set_ylabel('Value', fontsize=label_size)
+    ax[0].set_xlabel('Time', fontsize=label_size)
     
     # Plot ACF
     tsaplots.plot_acf(x, 
                       lags=acf_lags, 
-                      ax=axs[1], 
+                      ax=ax[1], 
                       color=acf_color, 
                       alpha=alpha,
                       use_vlines=use_vlines,
@@ -223,23 +223,30 @@ def plot_time_series_and_acf_pacf(t:                np.ndarray,
                       auto_ylims=auto_ylims, 
                       bartlett_confint=bartlett_confint
                       )
-    axs[1].set_title('Autocorrelation Function (ACF)', fontsize=title_size)
-    
+    ax[1].set_title('Autocorrelation Function (ACF)', fontsize=title_size)
+    # Customize the appearance of the vertical lines
+    for line in ax[1].get_lines():
+        # Check if the line is vertical (which is the confidence interval line)
+        if line.get_linestyle() == '--':
+            line.set_linewidth(5)  # Set the line width to 1 pt
+            line.set_color('black')  # Set the line color to black
+            
     # Plot PACF
     tsaplots.plot_pacf(x, 
                        lags=pacf_lags, 
-                       ax=axs[2], 
+                       ax=ax[2], 
                        color=pacf_color,
                        alpha=alpha,
                        method = pacf_method,
                        use_vlines=use_vlines,
                        zero=zero)
-    axs[2].set_title('Partial Autocorrelation Function (PACF)', fontsize=title_size)
-    
-    # Set common labels
-    for ax in axs:
-        ax.set_xlabel('Time', fontsize=label_size)
-    
+    ax[2].set_title('Partial Autocorrelation Function (PACF)', fontsize=title_size)
+    # Customize the appearance of the vertical lines
+    for line in ax[2].get_lines():
+        # Check if the line is vertical (which is the confidence interval line)
+        if line.get_linestyle() == '--':
+            line.set_linewidth(0.5)  # Set the line width to 1 pt
+            
     plt.tight_layout()
     
     # Return the figure object
