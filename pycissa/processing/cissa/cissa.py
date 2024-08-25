@@ -973,6 +973,7 @@ class Cissa:
                                           pacf_method=pacf_method,
                                           acf_color=acf_color,
                                           pacf_color=pacf_color,
+                                          title = 'Original Time Series',
                                           title_size=title_size,
                                           label_size=label_size
                                           )
@@ -1009,11 +1010,12 @@ class Cissa:
                 if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please fun the pycissa fit method before running the plot_autocorrelation method with noise components.")
             
             
-            noise_array = np.empty(self.results['cissa']['components']['trend']['reconstructed_data'].shape)
+            noise_array = np.zeros(self.results['cissa']['components']['trend']['reconstructed_data'].shape)
             for key_j in self.results['cissa']['components'].keys():
                 if self.results['cissa']['components'][key_j]['array_position'] in noise_components:
                     noise_array += self.results['cissa']['components'][key_j]['reconstructed_data']
-         
+
+            
             fig2 = plot_time_series_and_acf_pacf(self.t,noise_array,
                                               acf_lags=acf_lags,
                                               pacf_lags=pacf_lags,
@@ -1028,6 +1030,7 @@ class Cissa:
                                               pacf_method=pacf_method,
                                               acf_color=acf_color,
                                               pacf_color=pacf_color,
+                                              title = 'Residual Time Series',
                                               title_size=title_size,
                                               label_size=label_size
                                               )

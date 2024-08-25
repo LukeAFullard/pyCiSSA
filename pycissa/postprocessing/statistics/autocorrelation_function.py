@@ -130,6 +130,7 @@ def plot_time_series_and_acf_pacf(t:                np.ndarray,
                                   pacf_method:      str='ywm',
                                   acf_color:        str='blue', 
                                   pacf_color:       str='blue', 
+                                  title:            str|None=None,
                                   title_size:       float|int=14, 
                                   label_size:       float|int=12
                                   ):
@@ -178,6 +179,8 @@ def plot_time_series_and_acf_pacf(t:                np.ndarray,
         DESCRIPTION. The default is 'blue'. Colour of the acf plot markers.
     pacf_color : str, optional
         DESCRIPTION. The default is 'blue'. Colour of the pacf plot markers.
+    title : str|None, optional
+        DESCRIPTION. The default is None. Title for the figure data figure
     title_size : float|int, optional
         DESCRIPTION. The default is 14. 
     label_size : float|int, optional
@@ -205,7 +208,10 @@ def plot_time_series_and_acf_pacf(t:                np.ndarray,
     
     # Plot raw time series data
     ax[0].plot(t, x, label='Time Series Data', color='black')
-    ax[0].set_title('Raw Time Series Data', fontsize=title_size)
+    if title is None:
+        ax[0].set_title('Raw Time Series Data', fontsize=title_size)
+    else:
+        ax[0].set_title(title, fontsize=title_size)
     ax[0].set_ylabel('Value', fontsize=label_size)
     ax[0].set_xlabel('Time', fontsize=label_size)
     
