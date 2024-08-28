@@ -846,7 +846,7 @@ class Cissa:
         #check that all necessary input variables exist 
         necessary_attributes = ["psd","L","results"]
         for attr_i in necessary_attributes:
-            if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please run the pycissa fit method before running the run_frequency_time_analysis method.")
+            if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please run the pycissa fit method before running the post_run_monte_carlo_analysis method.")
         
         mc_results, figure_monte_carlo = run_monte_carlo_test(x = self.x,
                              L = self.L,
@@ -870,6 +870,99 @@ class Cissa:
         self.figures.get('cissa').update({'figure_monte_carlo':figure_monte_carlo})
         
         return self
+    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------- 
+    # smallest_n number_of_groups_to_drop include_trend
+    # smallest_proportion eigenvalue_proportion
+    # monte_carlo
+    # 'drop_smallest_n', 'drop_smallest_proportion', 'monte_carlo_significant_components'
+    def post_group_components(self,
+                                 grouping_type:            str = 'monte_carlo', 
+                                 eigenvalue_proportion:    float = 0.9,
+                                 number_of_groups_to_drop: int = 5,
+                                 include_trend:            bool = True,
+                                 plot_result:              bool = True,):
+        '''
+        Function to group components into trend, periodic, or noise/residual.
+
+        Parameters
+        ----------
+        grouping_type : str, optional
+            DESCRIPTION. The default is 'monte_carlo'. Current options are 'monte_carlo', 'smallest_proportion', or 'smallest_n'.
+        eigenvalue_proportion : float, optional
+            DESCRIPTION. The default is 0.9. Only used of grouping type = 'smallest_proportion'
+                    There are two options:
+                    1) A number between 0 & 1. This number represents the accumulated
+                    share of the psd achieved with the sum of the share associated to
+                    the largest eigenvalues. The function computes the trend and periodic components
+                    as these components, and the remaining as noise.
+                    2) A number between -1 & 0. It is a percentile (in positive) of
+                    the psd. The function classifies as trend/periodic the componentes by frequency
+                    whose psd is greater that this percentile, and noise otherwise.
+        number_of_groups_to_drop : int, optional
+            DESCRIPTION. The default is 5. Only used if grouping_type == 'smallest_n'. Will order the components by psd proportion and classify the lowest "number_of_groups_to_drop" as noise.
+        include_trend : bool, optional
+            DESCRIPTION. The default is True. Only used if grouping_type == 'smallest_n'. If False, the trend will always be removed.
+        plot_result : bool, optional
+            DESCRIPTION. The default is True. Plot resulting breakdown of components or not.
+
+        '''
+        def combine_components(temp_results,group_indices):
+            x_grouped = np.zeros(temp_results['components']['trend']['reconstructed_data'].shape)
+            for key_j in temp_results['components'].keys():
+                if temp_results['components'][key_j]['array_position'] in group_indices:
+                    x_grouped += temp_results['components'][key_j]['reconstructed_data']
+            return x_grouped        
+            
+        from pycissa.postprocessing.grouping.grouping_functions import classify_smallest_n_components
+        #check that all necessary input variables exist 
+        necessary_attributes = ["psd","L","results"]
+        for attr_i in necessary_attributes:
+            if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please run the pycissa fit method before running the post_group_components method.")
+        # 'monte_carlo', 'smallest_proportion', or 'smallest_n'.
+        if grouping_type == 'monte_carlo':
+            if self.results.get('cissa').get('components').get('trend').get('monte_carlo') is None: raise ValueError(f"Please run the post_run_monte_carlo_analysis method before running the post_group_components with grouping_type == 'monte_carlo' or use another grouping type.")
+            from pycissa.postprocessing.grouping.grouping_functions import classify_monte_carlo_non_significant_components
+            trend,  periodic, noise = classify_monte_carlo_non_significant_components(self.Z,
+                                                                                      self.results.get('cissa'))
+        elif grouping_type == 'smallest_proportion':
+            from pycissa.postprocessing.grouping.grouping_functions import classify_smallest_proportion_psd
+            trend,  periodic, noise = classify_smallest_proportion_psd(self.Z,
+                                                                       self.psd,
+                                                                       self.L,
+                                                                       eigenvalue_proportion)
+        elif grouping_type == 'smallest_n':
+            from pycissa.postprocessing.grouping.grouping_functions import classify_smallest_n_components
+            trend,  periodic, noise = classify_smallest_n_components(self.Z, 
+                                                                     self.psd, 
+                                                                     self.L,
+                                                                     number_of_groups_to_drop,
+                                                                     include_trend=include_trend)
+        else: raise ValueError(f"Input parameter 'grouping_type' should be one of 'monte_carlo', 'smallest_proportion', or 'smallest_n'. You entered: {grouping_type}.")
+        
+        self.results['cissa']['model parameters'].update({'trend_index':trend}) 
+        self.results['cissa']['model parameters'].update({'periodic_index':periodic}) 
+        self.results['cissa']['model parameters'].update({'noise_index':noise}) 
+        
+        self.x_trend = combine_components(self.results['cissa'],trend)
+        self.x_periodic = combine_components(self.results['cissa'],periodic)
+        self.x_noise = combine_components(self.results['cissa'],noise)
+
+        
+        if plot_result:
+            from pycissa.utilities.plotting import plot_grouped_components
+            fig = plot_grouped_components(self.t,
+                                          self.x,
+                                          self.x_trend,
+                                          self.x_periodic,
+                                          self.x_noise,)
+            self.figures.get('cissa').update({'figure_split_components':fig})
+            
+        
+
+        
+        return self
+    
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
     def plot_autocorrelation(self,
@@ -1060,8 +1153,9 @@ class Cissa:
     auto remove noise
     auto remove trend 
     auto 
+    lomb-scargle, monthly/quarterly box-plots (single and split by date)
     predict method (TO DO, maybe using AutoTS or MAPIE?)
-    calculate statistics for each component
+    calculate statistics for each component AND especially for self.x_noise
     general plot (OG data, trend, periodic, noise/residual)
     gap fill/predict/noise conformal prediction?
     '''    
