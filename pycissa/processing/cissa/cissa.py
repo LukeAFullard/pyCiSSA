@@ -1135,7 +1135,64 @@ class Cissa:
 
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
-    
+    def plot_seasonal_boxplots(self,
+                               split_date:    datetime|None = None,
+                               bar_width:     float = 0.25,
+                               plot_type:     str = 'both',
+                               remove_trend:  bool=False,
+                               include_noise: bool=True,):
+        '''
+        Function to plot seasonal (either monthly or yearly or both) boxplots.
+        Includes the option to split the data by a set date and will plot grouped boxplots with one group being the boxplot of the seasonal data before the set date, the other after.
+
+        Parameters
+        ----------
+        split_date : datetime|None, optional
+            DESCRIPTION. The default is None. A datetime object which splits the boxplots into groups, one before the set date, one after. If None, the data is not split.
+        bar_width : float, optional
+            DESCRIPTION. The default is 0.25. Width of each individual bar
+        plot_type : str, optional
+            DESCRIPTION. The default is 'both'. One of 'both', 'monthly', or 'yearly', depending on the type of boxplot to be plotted.
+        remove_trend : bool, optional
+            DESCRIPTION. The default is False. If True, the trend is remove. If True, then we first must have run post_group_components.
+        include_noise : bool, optional
+            DESCRIPTION. The default is True. Only used if remove_trend = True. If False, the noise component is removed, leaving only the periodic component to be box-plotted.
+
+
+        '''
+        #----------------------------------------------------------------------
+        #ensure data is not uncensored or nan
+        if self.censored:  raise ValueError("Censored data detected. Please run pre_fix_censored_data before plot_seasonal_boxplots.")
+        if self.isnan: raise ValueError("WARNING: nan data detected. Please run pre_fill_gaps before plot_seasonal_boxplots.")
+        #----------------------------------------------------------------------
+        
+        if plot_type in ['both','monthly']:
+            from pycissa.utilities.plotting import seasonal_boxplots
+            if remove_trend:
+                necessary_attributes = ["x_trend","x_periodic","x_noise"]
+                for attr_i in necessary_attributes:
+                    if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please run the pycissa post_group_components method before running the plot_seasonal_boxplots method with remove_trend = True.")
+                if include_noise:x_plot = self.x_periodic + self.x_noise
+                else:x_plot = self.x_periodic
+            else:    
+                x_plot = self.x
+            fig = seasonal_boxplots(self.t,x_plot,split_date=split_date,bar_width=bar_width)
+            self.figures.get('cissa').update({'figure_monthly_seasonal_box':fig}) 
+            
+        if plot_type in ['both','yearly']:
+            from pycissa.utilities.plotting import yearly_boxplots
+            if remove_trend:
+                necessary_attributes = ["x_trend","x_periodic","x_noise"]
+                for attr_i in necessary_attributes:
+                    if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please run the pycissa post_group_components method before running the plot_seasonal_boxplots method with remove_trend = True.")
+                if include_noise:x_plot = self.x_periodic + self.x_noise
+                else:x_plot = self.x_periodic
+            else:    
+                x_plot = self.x
+            fig = yearly_boxplots(self.t,x_plot,bar_width=bar_width)
+            self.figures.get('cissa').update({'figure_yearly_seasonal_box':fig}) 
+            
+        return self        
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
     
@@ -1153,7 +1210,7 @@ class Cissa:
     auto remove noise
     auto remove trend 
     auto 
-    lomb-scargle, monthly/quarterly box-plots (single and split by date)
+    lomb-scargle, 
     predict method (TO DO, maybe using AutoTS or MAPIE?)
     calculate statistics for each component AND especially for self.x_noise
     general plot (OG data, trend, periodic, noise/residual)
