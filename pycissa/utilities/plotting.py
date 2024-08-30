@@ -23,7 +23,7 @@ def plot_grouped_components(t: np.ndarray,
     axs[0].set_title('Time Series Components')
     
     # Plot for the bottom subplot
-    axs[1].plot(t, x_noise, 'c', label='noise')
+    axs[1].plot(t, x_noise, 'm', label='noise')
     axs[1].plot(t, x_periodic, 'g', label='periodic')
     
     # Set labels and title for the bottom subplot

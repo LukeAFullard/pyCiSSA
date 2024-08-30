@@ -157,6 +157,7 @@ class Cissa:
 
         results = self.results
         results.get('cissa').setdefault('model parameters', {})
+        results.get('cissa').setdefault('noise component tests', {})
         results.get('cissa').get('model parameters').update({
             'extension_type'   : extension_type, 
             'L'                : L,
@@ -881,6 +882,9 @@ class Cissa:
                                  eigenvalue_proportion:    float = 0.9,
                                  number_of_groups_to_drop: int = 5,
                                  include_trend:            bool = True,
+                                 check_noise_statistics:   bool = True,
+                                 noise_alpha:              float = 0.05, 
+                                 ljung_box_lags:           int = 12,  
                                  plot_result:              bool = True,):
         '''
         Function to group components into trend, periodic, or noise/residual.
@@ -903,6 +907,12 @@ class Cissa:
             DESCRIPTION. The default is 5. Only used if grouping_type == 'smallest_n'. Will order the components by psd proportion and classify the lowest "number_of_groups_to_drop" as noise.
         include_trend : bool, optional
             DESCRIPTION. The default is True. Only used if grouping_type == 'smallest_n'. If False, the trend will always be removed.
+        check_noise_statistics : bool, optional
+            DESCRIPTION. The default is True. If True, will check the noise component for normality and autocorrelation.
+        noise_alpha : float, optional
+            DESCRIPTION. The default is 0.05. Significance level for statistical tests.
+        ljung_box_lags : int, optional    
+            DESCRIPTION. The default is 12. number of lags to check in the Ljung-box test.
         plot_result : bool, optional
             DESCRIPTION. The default is True. Plot resulting breakdown of components or not.
 
@@ -940,14 +950,26 @@ class Cissa:
                                                                      include_trend=include_trend)
         else: raise ValueError(f"Input parameter 'grouping_type' should be one of 'monte_carlo', 'smallest_proportion', or 'smallest_n'. You entered: {grouping_type}.")
         
-        self.results['cissa']['model parameters'].update({'trend_index':trend}) 
-        self.results['cissa']['model parameters'].update({'periodic_index':periodic}) 
-        self.results['cissa']['model parameters'].update({'noise_index':noise}) 
+        self.results['cissa']['noise component tests'].update({'trend_index':trend}) 
+        self.results['cissa']['noise component tests'].update({'periodic_index':periodic}) 
+        self.results['cissa']['noise component tests'].update({'noise_index':noise}) 
         
         self.x_trend = combine_components(self.results['cissa'],trend)
         self.x_periodic = combine_components(self.results['cissa'],periodic)
         self.x_noise = combine_components(self.results['cissa'],noise)
 
+
+        if check_noise_statistics:
+            from pycissa.postprocessing.statistics.von_neumann import rank_von_neumann_test
+            from pycissa.postprocessing.statistics.ljung_box import run_ljung_box_test
+            from pycissa.postprocessing.statistics.normality_tests import run_normality_test
+            _,_,_,interpretation = rank_von_neumann_test(noise,alpha = noise_alpha)
+            self.results['cissa']['noise component tests'].update({'rank von Neumann' : interpretation})
+            _,_,_,_,interpretation = run_ljung_box_test(noise,lags = ljung_box_lags,alpha = noise_alpha)
+            self.results['cissa']['noise component tests'].update({'ljung_box' : interpretation})
+            _,_,_,interpretation = run_normality_test(noise,alpha = noise_alpha)
+            self.results['cissa']['noise component tests'].update({'normality' : interpretation})
+            
         
         if plot_result:
             from pycissa.utilities.plotting import plot_grouped_components
@@ -1212,8 +1234,5 @@ class Cissa:
     auto 
     lomb-scargle, 
     predict method (TO DO, maybe using AutoTS or MAPIE?)
-    calculate statistics for each component AND especially for self.x_noise
-    general plot (OG data, trend, periodic, noise/residual)
-    gap fill/predict/noise conformal prediction?
     '''    
           
