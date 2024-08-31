@@ -174,7 +174,7 @@ class Cissa:
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
-    def post_predict(self):
+    def predict(self):
         print("FUTURE PREDICTION NOT YET IMPLEMENTED")
         #TO DO, maybe using AutoTS or MAPIE?
         return self
@@ -687,8 +687,8 @@ class Cissa:
     def post_analyse_trend(self,
                       trend_type:        str = 'rolling_OLS',
                       t_unit:            str = '',
-                      data_unit:            str = '',
-                      alpha:             list = [x/20 for x in range(1,20)],
+                      data_unit:         str = '',
+                      alphas:            list = [x/20 for x in range(1,20)],
                       timestep:          float = 1,   
                       timestep_unit:     str = '', 
                       include_data:      bool = True, 
@@ -709,7 +709,7 @@ class Cissa:
             DESCRIPTION: Time unit. Not required if time is a datetime. The default is ''.
         data_unit : str, optional
             DESCRIPTION. Data unit. The default is ''.
-        alpha : list, optional
+        alphas : list, optional
             DESCRIPTION. A list of significance levels for the confidence interval. For example, alpha = [.05] returns a 95% confidence interval. The default is [0.05] + [x/20 for x in range(1,20)].
         timestep : float, optional
             DESCRIPTION. Numeric timestep size in t_unit units. The default is 60*60*24.                 
@@ -742,7 +742,7 @@ class Cissa:
                              self.t,
                              t_unit=t_unit,
                              Y_unit=data_unit,
-                             alpha=alpha,
+                             alphas=alphas,
                              timestep=timestep,
                              timestep_unit=timestep_unit,
                              include_data=include_data,
@@ -761,7 +761,7 @@ class Cissa:
                               t_unit=t_unit,
                               Y_unit=data_unit,
                               window=window,
-                              alpha=alpha,
+                              alphas=alphas,
                               timestep=timestep,
                               timestep_unit=timestep_unit,
                               include_data=include_data,
@@ -1265,12 +1265,57 @@ class Cissa:
                                       plot_result              = kwargs.get('plot_result',True))  
         
         #plot frequency time graphs
+        _ = self.post_run_frequency_time_analysis(
+                                        data_per_period   = kwargs.get('data_per_period',1),
+                                        period_name       = kwargs.get('period_name',''),
+                                        t_unit            = kwargs.get('t_unit',''),
+                                        plot_frequency    = kwargs.get('plot_frequency',True),
+                                        plot_period       = kwargs.get('plot_period',True),
+                                        logplot_frequency = kwargs.get('logplot_frequency',True),
+                                        logplot_period    = kwargs.get('logplot_period',False),
+                                        normalise_plots   = kwargs.get('normalise_plots',False),
+                                        height_variable   = kwargs.get('height_variable','power'),
+                                        height_unit       = kwargs.get('height_unit',''))
         
         #plot trend
+        _ = self.post_analyse_trend(
+                          trend_type     = kwargs.get('trend_type','rolling_OLS'),
+                          t_unit         = kwargs.get('t_unit',''),
+                          data_unit      = kwargs.get('data_unit',''),
+                          alphas         = kwargs.get('alphas',[x/20 for x in range(1,20)]),
+                          timestep       = kwargs.get('timestep',1),
+                          timestep_unit  = kwargs.get('timestep_unit',''),
+                          include_data   = kwargs.get('include_data',True),
+                          legend_loc     = kwargs.get('legend_loc',2),
+                          shade_area     = kwargs.get('shade_area',False),
+                          xaxis_rotation = kwargs.get('xaxis_rotation',270),
+                          window         = kwargs.get('window',12)
+                          )
         
         #plot autocorrelation
-        TO DO HERE
-        
+        if not kwargs.get('noise_components'):
+            kwargs.update({'monte_carlo_noise':True})
+        _ = self.plot_autocorrelation(
+                                    noise_components  = kwargs.get('noise_components',None),
+                                    monte_carlo_noise = kwargs.get('monte_carlo_noise',False),
+                                    acf_lags          = kwargs.get('acf_lags',None),
+                                    pacf_lags         = kwargs.get('pacf_lags',None),
+                                    alpha             = kwargs.get('alpha',0.05),
+                                    use_vlines        = kwargs.get('use_vlines',True),
+                                    adjusted          = kwargs.get('adjusted',False),
+                                    fft               = kwargs.get('fft',False),
+                                    missing           = kwargs.get('missing','none'),
+                                    zero              = kwargs.get('zero',True),
+                                    auto_ylims        = kwargs.get('auto_ylims',False),
+                                    bartlett_confint  = kwargs.get('bartlett_confint',True),
+                                    pacf_method       = kwargs.get('pacf_method','ywm'),
+                                    acf_color         = kwargs.get('acf_color','blue'),
+                                    pacf_color        = kwargs.get('pacf_color','blue'),
+                                    title_size        = kwargs.get('title_size',14),
+                                    label_size        = kwargs.get('label_size',12)
+                                    )
+        print("Auto Cissa Complete!")
+        return self
         
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
@@ -1477,7 +1522,7 @@ class Cissa:
      
     #List of stuff to add in here
     '''  
-    auto run cissa (all methods)
+    check figure sizes
     lomb-scargle, 
     predict method (TO DO, maybe using AutoTS or MAPIE?)
     '''    

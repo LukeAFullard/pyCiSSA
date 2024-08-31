@@ -304,7 +304,7 @@ def trend_rolling(Y:              np.ndarray,
                   t_unit:         str = '',
                   Y_unit:         str = '',
                   window:         int = 12,
-                  alpha:          list = [0.05] + [x/20 for x in range(1,20)],
+                  alphas:         list = [0.05] + [x/20 for x in range(1,20)],
                   timestep:       float = 60*60*24,
                   timestep_unit:  str = 'day', 
                   include_data:   bool = True, 
@@ -327,7 +327,7 @@ def trend_rolling(Y:              np.ndarray,
         DESCRIPTION. Data unit. The default is ''.
     window : int, optional
         DESCRIPTION. Length of the rolling window. Must be strictly larger than the number of variables in the model. The default is 12.
-    alpha : list, optional
+    alphas : list, optional
         DESCRIPTION. A list of significance levels for the confidence interval. For example, alpha = [.05] returns a 95% confidence interval. The default is [0.05] + [x/20 for x in range(1,20)].
     timestep : float, optional
         DESCRIPTION. Numeric timestep size in t_unit units. The default is 60*60*24.                 
@@ -391,9 +391,9 @@ def trend_rolling(Y:              np.ndarray,
     intercepts = results.params[:,0]
     
     #generate confidence bands for slope
-    confidence_upper = {1 - ((a_i)/2 + (1-a_i)): results.conf_int(alpha=a_i)[:,1][:,1] for a_i in alpha}
-    alpha = alpha[::-1]
-    confidence_lower = {1 - a_i/2: results.conf_int(alpha=a_i)[:,0][:,1] for a_i in alpha}
+    confidence_upper = {1 - ((a_i)/2 + (1-a_i)): results.conf_int(alpha=a_i)[:,1][:,1] for a_i in alphas}
+    alphas = alphas[::-1]
+    confidence_lower = {1 - a_i/2: results.conf_int(alpha=a_i)[:,0][:,1] for a_i in alphas}
     
     confidence = {}
     confidence.update(confidence_upper)
@@ -415,7 +415,7 @@ def trend_linear(Y:              np.ndarray,
                  t:              np.ndarray,
                  t_unit:         str = '',
                  Y_unit:         str = '',
-                 alpha:          list = [0.05] + [x/20 for x in range(1,20)],
+                 alphas:          list = [0.05] + [x/20 for x in range(1,20)],
                  timestep:       float = 60*60*24,   
                  timestep_unit:  str = 'day', 
                  include_data:   bool = True, 
@@ -436,7 +436,7 @@ def trend_linear(Y:              np.ndarray,
         DESCRIPTION: Time unit. Not required if time is a datetime. The default is ''.
     Y_unit : str, optional
         DESCRIPTION. Data unit. The default is ''.
-    alpha : list, optional
+    alphas : list, optional
         DESCRIPTION. A list of significance levels for the confidence interval. For example, alpha = [.05] returns a 95% confidence interval. The default is [0.05] + [x/20 for x in range(1,20)].
     timestep : float, optional
         DESCRIPTION. Numeric timestep size in t_unit units. The default is 60*60*24.                 
@@ -497,9 +497,9 @@ def trend_linear(Y:              np.ndarray,
     intercept = results.params[0]
     
     #generate confidence bands for slope
-    confidence_upper = {1 - ((a_i)/2 + (1-a_i)): results.conf_int(alpha=a_i)[1][1] for a_i in alpha}
-    alpha = alpha[::-1]
-    confidence_lower = {1 - (a_i/2): results.conf_int(alpha=a_i)[1][0] for a_i in alpha}
+    confidence_upper = {1 - ((a_i)/2 + (1-a_i)): results.conf_int(alpha=a_i)[1][1] for a_i in alphas}
+    alphas = alphas[::-1]
+    confidence_lower = {1 - (a_i/2): results.conf_int(alpha=a_i)[1][0] for a_i in alphas}
     
     confidence = {}
     confidence.update(confidence_upper)
