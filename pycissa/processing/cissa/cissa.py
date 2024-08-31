@@ -964,11 +964,11 @@ class Cissa:
             from pycissa.postprocessing.statistics.von_neumann import rank_von_neumann_test
             from pycissa.postprocessing.statistics.ljung_box import run_ljung_box_test
             from pycissa.postprocessing.statistics.normality_tests import run_normality_test
-            _,_,_,interpretation = rank_von_neumann_test(noise,alpha = noise_alpha)
+            _,_,_,interpretation = rank_von_neumann_test(self.x_noise,alpha = noise_alpha)
             self.results['cissa']['noise component tests'].update({'rank von Neumann' : interpretation})
-            _,_,_,_,interpretation = run_ljung_box_test(noise,lags = ljung_box_lags,alpha = noise_alpha)
+            _,_,_,_,interpretation = run_ljung_box_test(self.x_noise,lags = ljung_box_lags,alpha = noise_alpha)
             self.results['cissa']['noise component tests'].update({'ljung_box' : interpretation})
-            _,_,_,interpretation = run_normality_test(noise,alpha = noise_alpha)
+            _,_,_,interpretation = run_normality_test(self.x_noise,alpha = noise_alpha)
             self.results['cissa']['noise component tests'].update({'normality' : interpretation})
             
         
@@ -1225,8 +1225,17 @@ class Cissa:
         pass
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
-    def auto_remove_noise():
-        pass
+    def auto_remove_noise(self,
+                     L:  int = None,
+                     plot_result = True,
+                     **kwargs):
+        #if L is not provided then we take L as (the floor of) half the series length
+        if not L:
+            L = int(np.floor(len(self.x)/2))
+        
+        #fix censoring and nan
+        _ = self.auto_fix_censoring_nan(L,**kwargs)
+        print('FIX ME')
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
     def auto_detrend(self,
@@ -1340,8 +1349,7 @@ class Cissa:
     '''  
 
     auto remove noise
-    auto remove trend 
-    auto 
+    auto run cissa (all methods)
     lomb-scargle, 
     predict method (TO DO, maybe using AutoTS or MAPIE?)
     '''    
