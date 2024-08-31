@@ -159,7 +159,7 @@ def _fix_censored_data(x: np.ndarray,
     
     
     x_uncensored = np.array(x_uncensored, dtype=np.float64) 
-    x_censoring  = np.array(x_censoring, dtype=np.float64)   
+    x_censoring  = np.array(x_censoring, dtype=object)   
 
     ###########################################################################
     ###########################################################################

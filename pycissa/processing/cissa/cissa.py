@@ -315,6 +315,7 @@ class Cissa:
         '''
         from pycissa.preprocessing.gap_fill.gap_filling import fill_timeseries_gaps
         from pycissa.postprocessing.monte_carlo.montecarlo import prepare_monte_carlo_kwargs
+        if self.censored:  raise ValueError("Censored data detected. Please run pre_fix_censored_data before fitting.")
         K_surrogates, surrogates, seed, sided_test, remove_trend,trend_always_significant, A_small_shuffle, generate_toeplitz_matrix = prepare_monte_carlo_kwargs(kwargs)
         x_ca,error_estimates,error_estimates_percentage,error_rmse,error_rmse_percentage,original_points,imputed_points, fig_errors,fig_time_series = fill_timeseries_gaps(
                                 self.t,                     
@@ -347,7 +348,7 @@ class Cissa:
                                  A_small_shuffle=A_small_shuffle,
                                  generate_toeplitz_matrix=generate_toeplitz_matrix,)
         
-        self.x = x_ca
+        self.x = x_ca.reshape(len(x_ca),)
         self.gap_fill_error_estimates            = error_estimates
         self.gap_fill_error_estimates_percentage = error_estimates_percentage
         self.gap_fill_error_rmse                 = error_rmse
@@ -1220,7 +1221,115 @@ class Cissa:
     
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
-    
+    def auto_cissa():
+        pass
+    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------- 
+    def auto_remove_noise():
+        pass
+    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------- 
+    def auto_detrend(self,
+                     L:  int = None,
+                     plot_result = True,
+                     **kwargs):
+        #if L is not provided then we take L as (the floor of) half the series length
+        if not L:
+            L = int(np.floor(len(self.x)/2))
+        
+        #fix censoring and nan
+        _ = self.auto_fix_censoring_nan(L,**kwargs)
+        
+        #run cissa
+        _ = self.fit(
+                L,
+                extension_type = kwargs.get('extension_type','AR_LR'),
+                multi_thread_run = kwargs.get('multi_thread_run',True),
+                generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False))
+        
+        #group components
+        from pycissa.postprocessing.grouping.grouping_functions import group
+        number_of_signal_components = int(len(self.psd)/2 - 1)
+        I = {'trend'    :[0],
+             'detrended':[x for x in range(1,number_of_signal_components+1)]}
+        rc, sh, kg, psd_sh = group(self.Z,self.psd,I)
+        
+        self.x_trend = rc['trend'].reshape(len(rc['trend']),)
+        self.x_detrended = rc['detrended'].reshape(len(rc['detrended']),)
+        
+        
+        if plot_result:
+            from pycissa.utilities.plotting import plot_detrended_signal
+            fig=plot_detrended_signal(self.t,
+                                    self.x,
+                                    self.x_trend,
+                                    self.x_detrended,
+                                        )
+
+            self.figures.get('cissa').update({'figure_detrended':fig})
+            
+            
+        return self
+        
+        
+        
+    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------- 
+    def auto_fix_censoring_nan(self,L : int,**kwargs):
+        '''
+        Function to automatically fix any censoring or nan values in the data.
+
+        Parameters
+        ----------
+        L : int
+            DESCRIPTION: CiSSA window length.
+        **kwargs : TYPE
+            DESCRIPTION. key word arguments for the pre_fix_censored_data() and pre_fill_gaps() functions.
+
+
+        '''
+        #check for censored, nan data
+        if self.censored: 
+            warnings.warn("Censored data detected. Running pre_fix_censored_data to fix...")
+            _ = self.pre_fix_censored_data(
+                                     replace_type        = kwargs.get('replace_type','raw'),
+                                     lower_multiplier    = kwargs.get('lower_multiplier',0.5),
+                                     upper_multiplier    = kwargs.get('upper_multiplier',1.1),
+                                     default_value_lower = kwargs.get('default_value_lower',0.),
+                                     default_value_upper = kwargs.get('default_value_upper',0.),
+                                     hicensor_lower      = kwargs.get('hicensor_lower',False), 
+                                     hicensor_upper      = kwargs.get('hicensor_upper',False),
+                                     )
+            
+        if self.isnan: 
+            warnings.warn("Censored data detected. Running pre_fill_gaps to fix...")
+            from pycissa.utilities.helper_functions import get_keyword_args
+            keys_to_remove = get_keyword_args(self.pre_fill_gaps)
+            temp_kwargs = {key: value for key, value in kwargs.items() if key not in keys_to_remove}
+            _ = self.pre_fill_gaps(                    
+                          L,
+                          convergence                = kwargs.get('convergence',['value', 1]),
+                          extension_type             = kwargs.get('extension_type','AR_LR'),
+                          multi_thread_run           = kwargs.get('multi_thread_run',True),
+                          initial_guess              = kwargs.get('initial_guess',['previous', 1]),
+                          outliers                   = kwargs.get('outliers',['nan_only',None]),
+                          estimate_error             = kwargs.get('estimate_error',True),
+                          test_number                = kwargs.get('test_number',10),
+                          test_repeats               = kwargs.get('test_repeats',1),
+                          z_value                    = kwargs.get('z_value',1.96),
+                          component_selection_method = kwargs.get('component_selection_method','monte_carlo_significant_components'),
+                          eigenvalue_proportion      = kwargs.get('eigenvalue_proportion',0.95),
+                          number_of_groups_to_drop   = kwargs.get('number_of_groups_to_drop',1),
+                          data_per_unit_period       = kwargs.get('data_per_unit_period',1),
+                          use_cissa_overlap          = kwargs.get('use_cissa_overlap',False),
+                          drop_points_from           = kwargs.get('drop_points_from','Left'),
+                          max_iter                   = kwargs.get('max_iter',50),
+                          verbose                    = kwargs.get('verbose',False),
+                          alpha                      = kwargs.get('alpha', 0.05),
+                          **temp_kwargs,
+                          )
+            
+        return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
 
@@ -1229,6 +1338,7 @@ class Cissa:
      
     #List of stuff to add in here
     '''  
+
     auto remove noise
     auto remove trend 
     auto 

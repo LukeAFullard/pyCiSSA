@@ -40,8 +40,45 @@ def plot_grouped_components(t: np.ndarray,
     
     # Return the figure object
     return fig
-
-
+#########################################################################
+#########################################################################
+#########################################################################
+def plot_detrended_signal(t: np.ndarray,
+                            x: np.ndarray,
+                            x_trend: np.ndarray,
+                            x_detrended: np.ndarray,
+                            ):
+    # Create a figure and a set of subplots
+    fig, axs = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+    
+    # Plot for the top subplot
+    axs[0].plot(t, x, 'k', label='original time-series')
+    axs[0].plot(t, x_trend, 'r', label='trend')
+    
+    # Set labels and title for the top subplot
+    axs[0].set_ylabel('value')
+    axs[0].legend(loc='upper left')
+    axs[0].set_title('Original time series with trend')
+    
+    # Plot for the bottom subplot
+    axs[1].plot(t, x_detrended, 'g', label='detrended')
+    
+    # Set labels and title for the bottom subplot
+    axs[1].set_xlabel('t')
+    axs[1].set_ylabel('value')
+    axs[1].legend(loc='upper left')
+    axs[1].set_title('Detrended signal')
+    
+    # Adjust layout
+    plt.tight_layout()
+    
+    # Show the plot
+    plt.show()
+    
+    # Return the figure object
+    return fig
+#########################################################################
+#########################################################################
 #########################################################################
 def seasonal_boxplots(t:          np.ndarray,
                       x:          np.ndarray,
