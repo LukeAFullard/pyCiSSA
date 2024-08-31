@@ -1221,27 +1221,157 @@ class Cissa:
     
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
-    def auto_cissa():
-        pass
-    #--------------------------------------------------------------------------
-    #-------------------------------------------------------------------------- 
-    def auto_remove_noise(self,
-                     L:  int = None,
-                     plot_result = True,
-                     **kwargs):
+    def auto_cissa(self,
+                   L: int = None,
+                   **kwargs):
         #if L is not provided then we take L as (the floor of) half the series length
         if not L:
             L = int(np.floor(len(self.x)/2))
         
         #fix censoring and nan
         _ = self.auto_fix_censoring_nan(L,**kwargs)
-        print('FIX ME')
+        
+        #run cissa
+        _ = self.fit(
+                L,
+                extension_type = kwargs.get('extension_type','AR_LR'),
+                multi_thread_run = kwargs.get('multi_thread_run',True),
+                generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False))
+        
+        #run monte carlo
+        _ = self.post_run_monte_carlo_analysis(
+                                     alpha                    = kwargs.get('alpha',0.05), 
+                                     K_surrogates             = kwargs.get('K_surrogates',1),  
+                                     surrogates               = kwargs.get('surrogates','random_permutation'), 
+                                     seed                     = kwargs.get('seed',None),   
+                                     sided_test               = kwargs.get('sided_test','one sided'),   
+                                     remove_trend             = kwargs.get('remove_trend',True),  
+                                     trend_always_significant = kwargs.get('trend_always_significant',True),
+                                     A_small_shuffle          = kwargs.get('A_small_shuffle',1.), 
+                                     extension_type           = kwargs.get('extension_type','AR_LR'), 
+                                     multi_thread_run         = kwargs.get('multi_thread_run',True), 
+                                     generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False), 
+                                     )
+        
+        #run grouping
+        _ = self.post_group_components(
+                                      grouping_type            = kwargs.get('grouping_type','monte_carlo'),
+                                      eigenvalue_proportion    = kwargs.get('eigenvalue_proportion',0.9),
+                                      number_of_groups_to_drop = kwargs.get('number_of_groups_to_drop',5),
+                                      include_trend            = kwargs.get('include_trend',True),
+                                      check_noise_statistics   = kwargs.get('check_noise_statistics',True),
+                                      noise_alpha              = kwargs.get('noise_alpha',0.05),
+                                      ljung_box_lags           = kwargs.get('ljung_box_lags',12),
+                                      plot_result              = kwargs.get('plot_result',True))  
+        
+        #plot frequency time graphs
+        
+        #plot trend
+        
+        #plot autocorrelation
+        TO DO HERE
+        
+        
+    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------- 
+    def auto_denoise(self,
+                     L:             int = None,
+                     plot_denoised: bool = True,
+                     **kwargs):
+        '''
+        Function to automatically denoise a time series using Cissa.
+        Automatically:
+            corrects censored and nan values.
+            fits the time series using Cissa.
+            groups the components into signal and noise.
+            Plots the results.
+
+        Parameters
+        ----------
+        L : int, optional
+            DESCRIPTION. The default is None. The default is None. CiSSA window length.
+        plot_denoised : bool, optional
+            DESCRIPTION. The default is True.  If True, the resulting denoised figure is plotted.
+        **kwargs : TYPE
+            DESCRIPTION. key word arguments for the auto_fix_censoring_nan(), fit(), post_run_monte_carlo_analysis(), and  post_group_components() functions.
+
+        '''
+        #if L is not provided then we take L as (the floor of) half the series length
+        if not L:
+            L = int(np.floor(len(self.x)/2))
+        
+        #fix censoring and nan
+        _ = self.auto_fix_censoring_nan(L,**kwargs)
+        
+        #run cissa
+        _ = self.fit(
+                L,
+                extension_type = kwargs.get('extension_type','AR_LR'),
+                multi_thread_run = kwargs.get('multi_thread_run',True),
+                generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False))
+        
+        #run monte carlo if needed
+        if kwargs.get('grouping_type','monte_carlo')=='monte_carlo':
+            _ = self.post_run_monte_carlo_analysis(
+                                         alpha                    = kwargs.get('alpha',0.05), 
+                                         K_surrogates             = kwargs.get('K_surrogates',1),  
+                                         surrogates               = kwargs.get('surrogates','random_permutation'), 
+                                         seed                     = kwargs.get('seed',None),   
+                                         sided_test               = kwargs.get('sided_test','one sided'),   
+                                         remove_trend             = kwargs.get('remove_trend',True),  
+                                         trend_always_significant = kwargs.get('trend_always_significant',True),
+                                         A_small_shuffle          = kwargs.get('A_small_shuffle',1.), 
+                                         extension_type           = kwargs.get('extension_type','AR_LR'), 
+                                         multi_thread_run         = kwargs.get('multi_thread_run',True), 
+                                         generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False), 
+                                         )
+            
+         #   run grouping
+        _ = self.post_group_components(
+                                      grouping_type            = kwargs.get('grouping_type','monte_carlo'),
+                                      eigenvalue_proportion    = kwargs.get('eigenvalue_proportion',0.9),
+                                      number_of_groups_to_drop = kwargs.get('number_of_groups_to_drop',5),
+                                      include_trend            = kwargs.get('include_trend',True),
+                                      check_noise_statistics   = kwargs.get('check_noise_statistics',True),
+                                      noise_alpha              = kwargs.get('noise_alpha',0.05),
+                                      ljung_box_lags           = kwargs.get('ljung_box_lags',12),
+                                      plot_result              = kwargs.get('plot_result',True))  
+
+        self.x_denoised = self.x_trend + self.x_periodic
+        
+        if plot_denoised:
+            from pycissa.utilities.plotting import plot_denoised_signal
+            fig = plot_denoised_signal(self.t,
+                                 self.x,
+                                 self.x_denoised
+                                        )
+            self.figures.get('cissa').update({'figure_denoised':fig})
+        
+        return self
+         
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
     def auto_detrend(self,
-                     L:  int = None,
-                     plot_result = True,
+                     L:           int = None,
+                     plot_result: bool = True,
                      **kwargs):
+        '''
+        Function to automatically detrend a signal using Cissa. 
+        Automatically:
+            corrects censored and nan values.
+            fits the time series using Cissa.
+            groups the components into trend and detrended signal.
+            Plots the results.
+
+        Parameters
+        ----------
+        L : int, optional
+            DESCRIPTION. The default is None. CiSSA window length.
+        plot_result : bool, optional
+            DESCRIPTION. The default is True. If True, the resulting detrended figure is plotted.
+        **kwargs : dict
+            DESCRIPTION. key word arguments for the auto_fix_censoring_nan() and fit() functions.
+        '''
         #if L is not provided then we take L as (the floor of) half the series length
         if not L:
             L = int(np.floor(len(self.x)/2))
@@ -1292,7 +1422,7 @@ class Cissa:
         ----------
         L : int
             DESCRIPTION: CiSSA window length.
-        **kwargs : TYPE
+        **kwargs : dict
             DESCRIPTION. key word arguments for the pre_fix_censored_data() and pre_fill_gaps() functions.
 
 
@@ -1347,8 +1477,6 @@ class Cissa:
      
     #List of stuff to add in here
     '''  
-
-    auto remove noise
     auto run cissa (all methods)
     lomb-scargle, 
     predict method (TO DO, maybe using AutoTS or MAPIE?)

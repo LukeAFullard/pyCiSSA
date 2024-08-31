@@ -80,6 +80,41 @@ def plot_detrended_signal(t: np.ndarray,
 #########################################################################
 #########################################################################
 #########################################################################
+def plot_denoised_signal(t: np.ndarray,
+                            x: np.ndarray,
+                            x_denoised: np.ndarray,
+                            ):
+    # Create a figure and a set of subplots
+    fig, axs = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+    
+    # Plot for the top subplot
+    axs[0].plot(t, x, 'k', label='original time-series')
+    
+    # Set labels and title for the top subplot
+    axs[0].set_ylabel('value')
+    axs[0].legend(loc='upper left')
+    axs[0].set_title('Original time series')
+    
+    # Plot for the bottom subplot
+    axs[1].plot(t, x_denoised, 'g', label='denoised')
+    
+    # Set labels and title for the bottom subplot
+    axs[1].set_xlabel('t')
+    axs[1].set_ylabel('value')
+    axs[1].legend(loc='upper left')
+    axs[1].set_title('Denoised time series')
+    
+    # Adjust layout
+    plt.tight_layout()
+    
+    # Show the plot
+    plt.show()
+    
+    # Return the figure object
+    return fig
+#########################################################################
+#########################################################################
+#########################################################################
 def seasonal_boxplots(t:          np.ndarray,
                       x:          np.ndarray,
                       split_date: datetime|None = None,
