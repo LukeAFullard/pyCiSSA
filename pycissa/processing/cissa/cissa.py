@@ -154,6 +154,10 @@ class Cissa:
         #generate initial results dictionary
         from pycissa.utilities.generate_cissa_result_dictionary import generate_results_dictionary
         self.results = generate_results_dictionary(self.Z,self.psd,L)
+        
+        from pycissa.postprocessing.grouping.grouping_functions import generate_grouping
+        myfrequencies = generate_grouping(self.psd,L, trend=True)
+        self.frequencies = myfrequencies
 
         results = self.results
         results.get('cissa').setdefault('model parameters', {})
@@ -1227,17 +1231,21 @@ class Cissa:
         #if L is not provided then we take L as (the floor of) half the series length
         if not L:
             L = int(np.floor(len(self.x)/2))
+            print(f"No input parameter L provided. Taking L as {L}.")
         
         #fix censoring and nan
+        print('Checking for censored or nan data...')
         _ = self.auto_fix_censoring_nan(L,**kwargs)
         
         #run cissa
+        print('RUNNING CISSA!')
         _ = self.fit(
                 L,
                 extension_type = kwargs.get('extension_type','AR_LR'),
                 multi_thread_run = kwargs.get('multi_thread_run',True),
                 generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False))
         
+        print('Performing monte-carlo significance analysis...')
         #run monte carlo
         _ = self.post_run_monte_carlo_analysis(
                                      alpha                    = kwargs.get('alpha',0.05), 
@@ -1254,6 +1262,7 @@ class Cissa:
                                      )
         
         #run grouping
+        print('Grouping components...')
         _ = self.post_group_components(
                                       grouping_type            = kwargs.get('grouping_type','monte_carlo'),
                                       eigenvalue_proportion    = kwargs.get('eigenvalue_proportion',0.9),
@@ -1265,6 +1274,7 @@ class Cissa:
                                       plot_result              = kwargs.get('plot_result',True))  
         
         #plot frequency time graphs
+        print('Running frequency time analysis...')
         _ = self.post_run_frequency_time_analysis(
                                         data_per_period   = kwargs.get('data_per_period',1),
                                         period_name       = kwargs.get('period_name',''),
@@ -1278,6 +1288,7 @@ class Cissa:
                                         height_unit       = kwargs.get('height_unit',''))
         
         #plot trend
+        print('Analysing trend...')
         _ = self.post_analyse_trend(
                           trend_type     = kwargs.get('trend_type','rolling_OLS'),
                           t_unit         = kwargs.get('t_unit',''),
@@ -1293,6 +1304,7 @@ class Cissa:
                           )
         
         #plot autocorrelation
+        print('Calculating time-series autocorrelation...')
         if not kwargs.get('noise_components'):
             kwargs.update({'monte_carlo_noise':True})
         _ = self.plot_autocorrelation(

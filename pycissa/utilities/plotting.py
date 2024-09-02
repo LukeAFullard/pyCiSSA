@@ -35,9 +35,6 @@ def plot_grouped_components(t: np.ndarray,
     # Adjust layout
     plt.tight_layout()
     
-    # Show the plot
-    plt.show()
-    
     # Return the figure object
     return fig
 #########################################################################
@@ -72,9 +69,6 @@ def plot_detrended_signal(t: np.ndarray,
     # Adjust layout
     plt.tight_layout()
     
-    # Show the plot
-    plt.show()
-    
     # Return the figure object
     return fig
 #########################################################################
@@ -106,9 +100,6 @@ def plot_denoised_signal(t: np.ndarray,
     
     # Adjust layout
     plt.tight_layout()
-    
-    # Show the plot
-    plt.show()
     
     # Return the figure object
     return fig
