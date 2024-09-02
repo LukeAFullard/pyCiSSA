@@ -40,6 +40,36 @@ def plot_grouped_components(t: np.ndarray,
 #########################################################################
 #########################################################################
 #########################################################################
+def plot_noise_residual(x: np.ndarray, x_noise: np.ndarray):
+    # Create a figure and a set of subplots with 1 row and 2 columns
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(15, 6))
+    
+    # Plot for the first subplot (scatter plot of residuals)
+    axs[0].scatter(x, x_noise, color='k')
+    axs[0].set_ylabel('Residual')
+    axs[0].set_xlabel('Original time series value')
+    axs[0].set_title('Noise/Residual Plot')
+    axs[0].axhline(y=0, color='r', linestyle='--', linewidth=1.5)
+    
+    # Compute histogram data
+    n_bins = 30
+    counts, bins, patches = axs[1].hist(x_noise, bins=n_bins, color='b', edgecolor='black', alpha=0.7)
+    
+    # Set x-axis and y-axis limits for histogram
+    axs[1].set_xlabel('Residual')
+    axs[1].set_ylabel('Frequency')
+    axs[1].set_title('Histogram of Residuals')
+    axs[1].set_ylim(0, np.max(counts) * 1.1)  # 10% more than the maximum count
+    
+    # Adjust layout to prevent overlap
+    plt.tight_layout()
+    
+    # Return the figure object
+    return fig
+
+#########################################################################
+#########################################################################
+#########################################################################
 def plot_detrended_signal(t: np.ndarray,
                             x: np.ndarray,
                             x_trend: np.ndarray,

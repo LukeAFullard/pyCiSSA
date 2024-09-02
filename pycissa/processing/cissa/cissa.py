@@ -977,13 +977,16 @@ class Cissa:
             
         
         if plot_result:
-            from pycissa.utilities.plotting import plot_grouped_components
+            from pycissa.utilities.plotting import plot_grouped_components,plot_noise_residual
             fig = plot_grouped_components(self.t,
                                           self.x,
                                           self.x_trend,
                                           self.x_periodic,
                                           self.x_noise,)
             self.figures.get('cissa').update({'figure_split_components':fig})
+            
+            fig = plot_noise_residual(self.x, self.x_noise)
+            self.figures.get('cissa').update({'figure_residual_check':fig})
             
         
 
@@ -1535,7 +1538,8 @@ class Cissa:
     #List of stuff to add in here
     '''  
     check figure sizes
-    lomb-scargle, 
+    finish function for periodogram slopes.
+    function commenting!
     predict method (TO DO, maybe using AutoTS or MAPIE?)
     '''    
           
