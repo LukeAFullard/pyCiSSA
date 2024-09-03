@@ -162,6 +162,7 @@ class Cissa:
         results = self.results
         results.get('cissa').setdefault('model parameters', {})
         results.get('cissa').setdefault('noise component tests', {})
+        results.get('cissa').setdefault('fractal scaling results', {})
         results.get('cissa').get('model parameters').update({
             'extension_type'   : extension_type, 
             'L'                : L,
@@ -697,7 +698,7 @@ class Cissa:
                       timestep_unit:     str = '', 
                       include_data:      bool = True, 
                       legend_loc:        int = 2, 
-                      shade_area:        bool = False, 
+                      shade_area:        bool = True, 
                       xaxis_rotation:    float = 270,
                       window:            int = 12
                       ):
@@ -724,7 +725,7 @@ class Cissa:
         legend_loc : int, optional
             DESCRIPTION: Location of the legend. The default is 2.
         shade_area : bool, optional
-            DESCRIPTION: Whether to shade below the trend or not. The default is False.
+            DESCRIPTION: Whether to shade below the trend or not. The default is True.
         xaxis_rotation : float, optional
             DESCRIPTION: Angle (degrees) to control of the x-axis ticks. The default is 270.
         window : int, optional
@@ -993,6 +994,77 @@ class Cissa:
         
         return self
     
+    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------- 
+    def post_periodogram_analysis(self,     
+                                  significant_components             : list|None = None,
+                                  monte_carlo_significant_components : bool = True,
+                                  alpha                              : float = 0.05,
+                                  max_breakpoints                    : int = 2,
+                                  n_boot                             : int = 500,
+                                  hurst_window                       : int = 12,
+                                  **kwargs):
+        '''
+        Function to run a periodogram analysis to find the fractal scaling of the time series.
+        In all cases the trend is not considered, and significant periodic components can be ignored too using the input parameters.
+        Also calculates the Hurst exponent for the full and detrended series.
+
+        Parameters
+        ----------
+        significant_components : list|None, optional
+            DESCRIPTION. The default is None. A list of significant components which will not be considered in the periodogram analysis. Can also be None, in which case all components (except the trend) will be used for the periodogram, or if significant_components = None and monte_carlo_significant_components = True, then the monte carlo significant components will be removed.
+        monte_carlo_significant_components : bool, optional
+            DESCRIPTION. The default is True. If significant_components = None and monte_carlo_significant_components = True, the significant components list will be filled with the significant components as defined using the monte carlo analysis.
+        alpha : float, optional
+            DESCRIPTION. The default is 0.05. Significance level for statistical tests.
+        max_breakpoints : int, optional
+            DESCRIPTION. The default is 2. Max number of breakpoints for the segmented linear fit. Currently will always be reset to 1 if >1.
+        n_boot : int, optional
+            DESCRIPTION. The default is 500. Number of bootstrap iterations for the segmented linear fit.
+        hurst_window : int, optional
+            DESCRIPTION. The default is 12. The window length (in number of time steps) for the rolling Hurst calculation.
+        **kwargs 
+            DESCRIPTION. keyword arguments for fitting.
+
+        '''
+        from pycissa.postprocessing.periodogram.periodogram import generate_peridogram_plots
+        necessary_attributes = ["psd","frequencies","results"]
+        for attr_i in necessary_attributes:
+            if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please run the pycissa fit method before running the post_periodogram_analysis method.")
+        necessary_attributes = ["x_trend","x_periodic",'x_noise']
+        for attr_i in necessary_attributes:
+            if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please run the pycissa auto_detrend method before running the post_group_components method.")
+        
+        #if no significant components supplied (i.e. = None) and if choosing to use monte_carlo to define significant components, here get those significant components.
+        if (not significant_components) &  (monte_carlo_significant_components):
+            if self.results.get('cissa').get('components').get('trend').get('monte_carlo') is None: raise ValueError(f"Please run the post_run_monte_carlo_analysis method before running the post_periodogram_analysis with monte_carlo_significant_components = True and no explicitly set significant_components.")
+            mc_surrogates = self.results['cissa']['model parameters']['monte_carlo_surrogate_type']
+            mc_alpha = self.results['cissa']['model parameters']['monte_carlo_alpha']
+            significant_components = []
+            for key_j in self.results['cissa']['components'].keys():
+                if key_j != 'trend':
+                    if self.results['cissa']['components'][key_j]['monte_carlo'][mc_surrogates]['alpha'][mc_alpha]['pass']:
+                        position = self.results['cissa']['components'][key_j]['array_position']
+                        significant_components.append(position)
+            if len(significant_components) == 0:
+                significant_components = None
+            
+        fig_linear, fig_segmented, fig_robust_linear, linear_slopes, segmented_slopes, robust_linear_slopes,all_hurst,detrended_hurst,fig_rolling_hurst,rolling_hurst,rolling_hurst_detrended  =generate_peridogram_plots(self.x_trend,self.x_periodic+self.x_noise,self.psd,self.frequencies,significant_components=significant_components,alpha=alpha,max_breakpoints=max_breakpoints,n_boot=n_boot,hurst_window=hurst_window)
+        self.figures.get('cissa').update({'figure_periodogram_linear'       :fig_linear})
+        self.figures.get('cissa').update({'figure_periodogram_robust_linear':fig_robust_linear})
+        self.figures.get('cissa').update({'figure_periodogram_segmented'    :fig_segmented})
+        self.figures.get('cissa').update({'figure_rolling_Hurst'            :fig_rolling_hurst})
+        
+        
+        self.results.get('cissa').get('fractal scaling results').update({'linear_periodogram_slopes'        : linear_slopes,
+                                                                         'robust_linear_periodogram_slopes' : robust_linear_slopes,
+                                                                         'segmented_periodogram_slopes'     : segmented_slopes,
+                                                                         'full Hurst exponent'              : all_hurst,
+                                                                         'detrended Hurst exponent'         : detrended_hurst,
+                                                                         'rolling Hurst exponent'           : rolling_hurst,
+                                                                         'detrended rolling Hurst exponent' :rolling_hurst_detrended })
+        
+        return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
     def plot_autocorrelation(self,
@@ -1301,7 +1373,7 @@ class Cissa:
                           timestep_unit  = kwargs.get('timestep_unit',''),
                           include_data   = kwargs.get('include_data',True),
                           legend_loc     = kwargs.get('legend_loc',2),
-                          shade_area     = kwargs.get('shade_area',False),
+                          shade_area     = kwargs.get('shade_area',True),
                           xaxis_rotation = kwargs.get('xaxis_rotation',270),
                           window         = kwargs.get('window',12)
                           )
@@ -1329,6 +1401,17 @@ class Cissa:
                                     title_size        = kwargs.get('title_size',14),
                                     label_size        = kwargs.get('label_size',12)
                                     )
+        
+        # run periodogram analysis
+        print("running peridogram analysis")
+        _ = self.post_periodogram_analysis(     
+                                      significant_components             = kwargs.get('significant_components',None),
+                                      monte_carlo_significant_components = kwargs.get('monte_carlo_significant_components',True),
+                                      alpha                              = kwargs.get('alpha',0.05),
+                                      max_breakpoints                    = kwargs.get('max_breakpoints',2),
+                                      n_boot                             = kwargs.get('n_boot',500),
+                                      hurst_window                       = kwargs.get('hurst_window',12),
+                                      )
         print("Auto Cissa Complete!")
         return self
         
@@ -1538,8 +1621,8 @@ class Cissa:
     #List of stuff to add in here
     '''  
     check figure sizes
-    finish function for periodogram slopes.
     function commenting!
+    fractal noise surrogates (pyleoclim)
     predict method (TO DO, maybe using AutoTS or MAPIE?)
     '''    
           
