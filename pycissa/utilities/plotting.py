@@ -2,7 +2,31 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 import copy
+#########################################################################
+#########################################################################
+#########################################################################
 
+def plot_time_series(t: np.ndarray,
+                            x: np.ndarray,):
+    # Create a figure and a set of subplots
+    fig, axs = plt.subplots(figsize=(10, 8), sharex=True)
+    
+    # Plot for the top subplot
+    axs[0].plot(t, x, 'k', label='original time-series')
+    
+    # Set labels and title for the top subplot
+    axs[0].set_ylabel('value')
+    axs[0].legend(loc='upper left')
+    axs[0].set_title('Time Series')
+    
+    # Adjust layout
+    plt.tight_layout()
+    
+    # Return the figure object
+    return fig
+#########################################################################
+#########################################################################
+#########################################################################
 def plot_grouped_components(t: np.ndarray,
                             x: np.ndarray,
                             x_trend: np.ndarray,

@@ -468,7 +468,6 @@ def classify_smallest_proportion_psd(Z,psd,L,eigenvalue_proportion):
         DESCRIPTION: List of array locations for the periodic components
     noise : list
         DESCRIPTION: List of array locations for the noise components
-
     '''
     myfrequencies = generate_grouping(psd,L, trend=True)
     rc, sh, kg, _ = group(Z,psd,eigenvalue_proportion)
@@ -537,13 +536,17 @@ def classify_monte_carlo_non_significant_components(Z,tempresults):
     trend = []
     periodic = []
     noise = []
+    
     for key_j in tempresults['components'].keys():
         mc_pass = tempresults['components'][key_j]['monte_carlo'][surrogate_type]['alpha'][alpha]['pass']
-        if key_j == 'trend': trend.append(0)
+        if key_j == 'trend': 
+            trend.append(0)
         else:
-            if mc_pass: periodic.append(tempresults['components'][key_j]['array_position'])
-            else: noise.append(tempresults['components'][key_j]['array_position'])
-    return trend,periodic,noise        
+            if mc_pass: 
+                periodic.append(tempresults['components'][key_j]['array_position'])
+            else: 
+                noise.append(tempresults['components'][key_j]['array_position'])
+    return trend,periodic,noise      
             
 ###############################################################################
 ###############################################################################

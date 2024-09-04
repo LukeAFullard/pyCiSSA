@@ -87,7 +87,8 @@ class Cissa:
         self.t = t #array of times
         self.x = x #array of corresponding data
         
-        self.figures = {}  #make a space for future figures
+        if not hasattr(self, 'figures'):
+            self.figures = {}  #make a space for future figures
         self.figures.update({'cissa':{}})
         #----------------------------------------------------------------------
     def restore_original_data(self):
@@ -153,7 +154,10 @@ class Cissa:
         
         #generate initial results dictionary
         from pycissa.utilities.generate_cissa_result_dictionary import generate_results_dictionary
-        self.results = generate_results_dictionary(self.Z,self.psd,L)
+        if not hasattr(self, 'results'):
+            self.results = generate_results_dictionary(self.Z,self.psd,L)
+        else:
+            self.results.update(generate_results_dictionary(self.Z,self.psd,L))
         
         from pycissa.postprocessing.grouping.grouping_functions import generate_grouping
         myfrequencies = generate_grouping(self.psd,L, trend=True)
@@ -183,7 +187,17 @@ class Cissa:
         print("FUTURE PREDICTION NOT YET IMPLEMENTED")
         #TO DO, maybe using AutoTS or MAPIE?
         return self
-        
+     
+    def plot_original_time_series(self):
+        from pycissa.utilities.plotting import plot_time_series
+        #----------------------------------------------------------------------
+        #ensure data is not uncensored or nan
+        if self.censored:  raise ValueError("Censored data detected. Please run pre_fix_censored_data before plot_original_time_series.")
+        if self.isnan: raise ValueError("WARNING: nan data detected. Please run pre_fill_gaps before plot_original_time_series.")
+        #----------------------------------------------------------------------
+        fig = plot_time_series(self.t,self.x)
+        self.figures['cissa'].update({'figure_original_time_series':fig})
+        return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
     #--------------------------------------------------------------------------
@@ -939,7 +953,7 @@ class Cissa:
         if grouping_type == 'monte_carlo':
             if self.results.get('cissa').get('components').get('trend').get('monte_carlo') is None: raise ValueError(f"Please run the post_run_monte_carlo_analysis method before running the post_group_components with grouping_type == 'monte_carlo' or use another grouping type.")
             from pycissa.postprocessing.grouping.grouping_functions import classify_monte_carlo_non_significant_components
-            trend,  periodic, noise = classify_monte_carlo_non_significant_components(self.Z,
+            trend,  periodic, noise  = classify_monte_carlo_non_significant_components(self.Z,
                                                                                       self.results.get('cissa'))
         elif grouping_type == 'smallest_proportion':
             from pycissa.postprocessing.grouping.grouping_functions import classify_smallest_proportion_psd
@@ -956,9 +970,23 @@ class Cissa:
                                                                      include_trend=include_trend)
         else: raise ValueError(f"Input parameter 'grouping_type' should be one of 'monte_carlo', 'smallest_proportion', or 'smallest_n'. You entered: {grouping_type}.")
         
+        #get share of psd for each component
+        trend_share,periodic_share,noise_share = 0.,0.,0.
+        for key_j in self.results['cissa']['components'].keys():
+            index = self.results['cissa']['components'][key_j]['array_position']
+            share = self.results['cissa']['components'][key_j]['percentage_share_of_psd']
+            if index in trend:    trend_share += share
+            if index in periodic: periodic_share += share
+            if index in noise:    noise_share += share
+                
+
+        
         self.results['cissa']['noise component tests'].update({'trend_index':trend}) 
+        self.results['cissa']['noise component tests'].update({'trend_share':trend_share}) 
         self.results['cissa']['noise component tests'].update({'periodic_index':periodic}) 
+        self.results['cissa']['noise component tests'].update({'periodic_share':periodic_share}) 
         self.results['cissa']['noise component tests'].update({'noise_index':noise}) 
+        self.results['cissa']['noise component tests'].update({'noise_share':noise_share}) 
         
         self.x_trend = combine_components(self.results['cissa'],trend)
         self.x_periodic = combine_components(self.results['cissa'],periodic)
@@ -1312,6 +1340,9 @@ class Cissa:
         print('Checking for censored or nan data...')
         _ = self.auto_fix_censoring_nan(L,**kwargs)
         
+        #plot original time series
+        _ = self.plot_original_time_series()
+        
         #run cissa
         print('RUNNING CISSA!')
         _ = self.fit(
@@ -1623,6 +1654,6 @@ class Cissa:
     check figure sizes
     function commenting!
     fractal noise surrogates (pyleoclim)
-    predict method (TO DO, maybe using AutoTS or MAPIE?)
+    predict method (TO DO, maybe using MAPIE?)
     '''    
           

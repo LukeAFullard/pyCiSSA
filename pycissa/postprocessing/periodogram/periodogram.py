@@ -46,7 +46,27 @@ def make_periodogram_arrays(psd                    : np.array,
 
 ###############################################################################
 ###############################################################################
-def linear_fit(my_freq,my_psd,alpha=0.05):
+def linear_fit(my_freq : list,
+               my_psd  : list,
+               alpha   : float=0.05) -> dict:
+    '''
+    Function to perform OLS fitting to the log10(psd) vs log10(frequency).
+
+    Parameters
+    ----------
+    my_freq : list
+        DESCRIPTION. List of frequencies.
+    my_psd : list
+        DESCRIPTION. List of psd.
+    alpha : float, optional
+        DESCRIPTION. The default is 0.05. Significance level for calculating confidence interval (CI = 100*(1-alpha)).
+
+    Returns
+    -------
+    ols_result : dict
+        DESCRIPTION. Dictionary of results.
+
+    '''
     Z = np.array([np.log10(my_freq)])
     Z = Z.T
     Z = sm.add_constant(Z, has_constant='add')
@@ -64,7 +84,27 @@ def linear_fit(my_freq,my_psd,alpha=0.05):
     return ols_result
 ###############################################################################
 ###############################################################################
-def robust_linear_fit(my_freq, my_psd, alpha=0.05):
+def robust_linear_fit(my_freq : list,
+                      my_psd  : list,
+                      alpha   : float=0.05) -> dict:
+    '''
+    Function to perform ROBUST linear fitting to the log10(psd) vs log10(frequency).
+
+    Parameters
+    ----------
+    my_freq : list
+        DESCRIPTION. List of frequencies.
+    my_psd : list
+        DESCRIPTION. List of psd.
+    alpha : float, optional
+        DESCRIPTION. The default is 0.05. Significance level for calculating confidence interval (CI = 100*(1-alpha)).
+
+    Returns
+    -------
+    robust_result : dict
+        DESCRIPTION. Dictionary of results.
+
+    '''
     # Convert frequency and PSD to log scale
     X = np.log10(my_freq)
     Y = np.log10(my_psd)
@@ -96,12 +136,35 @@ def segmented_regression(my_freq         :  list,
                          my_psd          :  list,
                          max_breakpoints : int = 2,
                          n_boot          : int = 500
-                         ):
-    
-    ''' 
+                         )-> tuple[list,list]:
+    '''
+    Function to perform segmented regression (multiple linear fits) to the log10(psd) vs log10(frequency).
+    See:
     Pilgrim, C. (2021). piecewise-regression (aka segmented regression) in Python. Journal of Open Source Software, 6(68).
     https://joss.theoj.org/papers/10.21105/joss.03859
+    https://github.com/chasmani/piecewise-regression
+
+    Parameters
+    ----------
+    my_freq : list
+        DESCRIPTION. List of frequencies.
+    my_psd : list
+        DESCRIPTION. List of psd.
+    max_breakpoints : int, optional
+        DESCRIPTION. The default is 2. Max number of linear breakpoints to consider.
+    n_boot : int, optional
+        DESCRIPTION. The default is 500. Number of bootstraps for calclating confidence intervals on the breakpoint location.
+
+    Returns
+    -------
+    model_summaries : list
+        DESCRIPTION. List of model summaries
+    models : list
+        DESCRIPTION. List of model result class.
+
     '''
+    
+
     if max_breakpoints > 1:
         max_breakpoints = 1
         warnings.warn("For now max_breakpoints must be 0 or 1. This may change in the future. Resetting value to 1,")
@@ -116,8 +179,39 @@ def segmented_regression(my_freq         :  list,
 
 ###############################################################################
 ###############################################################################
-def plot_linear_fit(my_freq,my_psd,alpha,ols_result,legend_label = 'linear fit', title = 'Periodogram - linear fit',**kwargs):
-    
+def plot_linear_fit(my_freq      : list,
+                    my_psd       : list,
+                    alpha        : float,
+                    ols_result   : dict,
+                    legend_label : str = 'linear fit', 
+                    title        : str = 'Periodogram - linear fit',
+                    **kwargs):
+    '''
+    Function to plot a scatter plot of the data + the linear fit.
+
+    Parameters
+    ----------
+    my_freq : list
+        DESCRIPTION. List of frequencies.
+    my_psd : list
+        DESCRIPTION. List of psd.
+    alpha : float
+        DESCRIPTION. Significance level for calculating confidence interval (CI = 100*(1-alpha)).
+    ols_result : dict
+        DESCRIPTION. Dictionary of fit results.
+    legend_label : str, optional
+        DESCRIPTION. The default is 'linear fit'. Legend label text.
+    title : str, optional
+        DESCRIPTION. The default is 'Periodogram - linear fit'. Title text.
+    **kwargs : TYPE
+        DESCRIPTION. Plotting kwargs to pass to matplotlib.
+
+    Returns
+    -------
+    fig : figure
+        DESCRIPTION. Plot of log10(frequency) vs log10(psd) with a linear fit.
+
+    '''
     fig, ax = plt.subplots(figsize=(8, 6))
     
     #scatter data
@@ -150,7 +244,36 @@ def plot_linear_fit(my_freq,my_psd,alpha,ols_result,legend_label = 'linear fit',
      
 ###############################################################################
 ###############################################################################
-def plot_segmented_fit(my_freq,my_psd,alpha,model_summaries,models,**kwargs):
+def plot_segmented_fit(my_freq         : list,
+                       my_psd          : list,
+                       alpha           : float,
+                       model_summaries : list,
+                       models          : list,
+                       **kwargs):
+    '''
+    Function to plot a scatter plot of the data + the segmented linear fit.
+
+    Parameters
+    ----------
+    my_freq : list
+        DESCRIPTION. List of frequencies.
+    my_psd : list
+        DESCRIPTION. List of psd.
+    alpha : float
+        DESCRIPTION. Significance level for calculating confidence interval (CI = 100*(1-alpha)).
+    model_summaries : list
+        DESCRIPTION. List of model summary results.
+    models : list
+        DESCRIPTION. List of full model fit results.
+    **kwargs : TYPE
+        DESCRIPTION. Plotting kwargs to pass to matplotlib.
+
+    Returns
+    -------
+    fig : TYPE
+        DESCRIPTION. Plot of log10(frequency) vs log10(psd) with a segmented linear fit.
+
+    '''
     fig, ax = plt.subplots(figsize=(8, 6))
     for model_summary_j in model_summaries:
         #only using 1 breakpoint plot. May change this in the future.
@@ -229,6 +352,24 @@ def plot_rolling_hurst(rolling_hurst,rolling_hurst_detrended,window):
 def calculate_hurst_exponent(x_trend     : np.ndarray,
                              x_detrended : np.ndarray,
                              **kwargs) -> tuple[float,float]:
+    '''
+    Function to calculate Hurst exponent using the nolds package, https://cschoel.github.io/nolds/
+
+    Parameters
+    ----------
+    x_trend : np.ndarray
+        DESCRIPTION. Array of trend of series.
+    x_detrended : np.ndarray
+        DESCRIPTION. Array of detrended series.
+    **kwargs : TYPE
+        DESCRIPTION. kwargs for nolds.
+
+    Returns
+    -------
+    all_hurst,detrended_hurst : tuple[float,float]
+        DESCRIPTION. Hurst exponent for the full signal and the detrended series.
+
+    '''
 
     all_hurst = nolds.hurst_rs(x_trend+x_detrended, **kwargs)
     detrended_hurst = nolds.hurst_rs(x_detrended, **kwargs)
@@ -237,19 +378,29 @@ def calculate_hurst_exponent(x_trend     : np.ndarray,
 def calculate_rolling_hurst_exponent(x_trend: np.ndarray,
                                      x_detrended: np.ndarray,
                                      window: int,
-                                     **kwargs) -> np.ndarray:
-    """
+                                     **kwargs) -> tuple[np.ndarray,np.ndarray]:
+    '''
     Calculate the rolling Hurst exponent of a time series without using pandas.
 
-    Parameters:
-    - x_trend: numpy array of the trend component of the time series.
-    - x_detrended: numpy array of the detrended component of the time series.
-    - window: integer, size of the rolling window.
-    - kwargs: additional arguments to pass to nolds.hurst_rs.
+    Parameters
+    ----------
+    x_trend : np.ndarray
+        DESCRIPTION. numpy array of the trend component of the time series.
+    x_detrended : np.ndarray
+        DESCRIPTION. numpy array of the detrended component of the time series.
+    window : int
+        DESCRIPTION. size of the rolling window.
+    **kwargs : TYPE
+        DESCRIPTION. additional arguments to pass to nolds.hurst_rs.
 
-    Returns:
-    - np.ndarray: Rolling Hurst exponent values.
-    """
+    Returns
+    -------
+    rolling_hurst : np.ndarray
+        DESCRIPTION. Rolling Hurst exponent for the full time series.
+    rolling_hurst_detrended : np.ndarray
+        DESCRIPTION. Rolling Hurst exponent for the detrended time series.
+
+    '''
     # Combine the trend and detrended components
     combined_series = x_trend + x_detrended
     n = len(combined_series)
@@ -280,8 +431,61 @@ def generate_peridogram_plots(
                             n_boot                 : int = 500,
                             hurst_window                 : int = 12,
                             **kwargs):
+    '''
+    Function to run a periodogram analysis to find the fractal scaling of the time series.
+    In all cases the trend is not considered, and significant periodic components can be ignored too using the input parameters.
+    Also calculates the Hurst exponent for the full and detrended series.
+
+    Parameters
+    ----------
+    x_trend : np.ndarray
+        DESCRIPTION. numpy array of the trend component of the time series.
+    x_detrended : np.ndarray
+        DESCRIPTION. numpy array of the detrended component of the time series.
+    psd : np.array
+        DESCRIPTION. Power specrtal density from the CiSSA fit.
+    frequencies : dict
+        DESCRIPTION. Frequencies from the Cissa fit.
+    significant_components : list|None, optional
+        DESCRIPTION. The default is None. The default is None. A list of significant components which will not be considered in the periodogram analysis. Can also be None, in which case all components (except the trend) will be used for the periodogram, or if significant_components = None and monte_carlo_significant_components = True, then the monte carlo significant components will be removed.
+    alpha : float, optional
+        DESCRIPTION. The default is 0.05. Significance level for statistical tests.
+    max_breakpoints : int, optional
+        DESCRIPTION. The default is 2. Max number of breakpoints for the segmented linear fit. Currently will always be reset to 1 if >1.
+    n_boot : int, optional
+        DESCRIPTION. The default is 500. Number of bootstrap iterations for the segmented linear fit.
+    hurst_window : int, optional
+        DESCRIPTION. The default is 12. The window length (in number of time steps) for the rolling Hurst calculation.
+    **kwargs : TYPE
+        DESCRIPTION. keyword arguments for segmented fitting.
+
+    Returns
+    -------
+    fig_linear : figure
+        DESCRIPTION. Linear fit of log10(frequencies) vs log10(psd).
+    fig_segmented : figure
+        DESCRIPTION. Segmented linear fit of log10(frequencies) vs log10(psd).
+    fig_robust_linear : figure
+        DESCRIPTION. Robust linear fit of log10(frequencies) vs log10(psd).
+    linear_slopes : dict
+        DESCRIPTION. Dictionary of results from linear fitting.
+    segmented_slopes : dict
+        DESCRIPTION. Dictionary of results from segmented linear fitting.
+    robust_linear_slopes : dict
+        DESCRIPTION. Dictionary of results from robust linear fitting.
+    all_hurst : float
+        DESCRIPTION. Hurst exponent of the full time series.
+    detrended_hurst : float
+        DESCRIPTION. Hurst exponent of the detrended time series.
+    fig_rolling_hurst : figure
+        DESCRIPTION. Figure of the rolling Hurst exponent (unsure if this is correct, use with caution).
+    rolling_hurst : np.ndarray
+        DESCRIPTION. Array of rolling Hurst exponents for the full time series (unsure if this is correct, use with caution).
+    rolling_hurst_detrended : np.ndarray
+        DESCRIPTION. Array of rolling Hurst exponents for the detrended time series (unsure if this is correct, use with caution).
+
+    '''
     #get psd and frequencies of interest
-    print(significant_components)
     my_freq,my_psd   = make_periodogram_arrays(psd, frequencies,significant_components=significant_components)
     
     #make linear plot.
