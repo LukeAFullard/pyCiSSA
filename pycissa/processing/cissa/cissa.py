@@ -186,6 +186,10 @@ class Cissa:
     def predict(self):
         print("FUTURE PREDICTION NOT YET IMPLEMENTED")
         #TO DO, maybe using AutoTS or MAPIE?
+        '''
+        Joining CI (trend, periodic, noise)
+        https://arxiv.org/pdf/2406.16766
+        '''
         return self
      
     def plot_original_time_series(self):
