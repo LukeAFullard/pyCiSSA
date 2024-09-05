@@ -1,6 +1,7 @@
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
+import warnings
 
 def get_surrogate_data(data:            np.ndarray,
                        L:               int,
@@ -69,9 +70,10 @@ def get_surrogate_data(data:            np.ndarray,
     if surrogates == 'ar1_fit':
         x_surrogate = generate_ar1_evenly(data,seed)
     if surrogates in ['coloured_noise_single', 'coloured_noise_segmented']:
+        warnings.filterwarnings('ignore') #suppressing warnings here as they are driving me crazy...
         from pycissa.postprocessing.monte_carlo.fractal_surrogates import generate_colour_surrogate
         x_surrogate = generate_colour_surrogate(data,L,psd,Z,results,alpha,surrogates,sided_test,remove_trend,frequencies,seed)
-        
+        warnings.filterwarnings('default')
         
     return x_surrogate     
 ###############################################################################

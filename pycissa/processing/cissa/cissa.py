@@ -1667,6 +1667,10 @@ class Cissa:
     fractal noise surrogates (pyleoclim)
     predict method (TO DO, maybe using MAPIE?)
     install sklearn, Mapie
-    add option to center data
+    add option to center data (HARD)
+    
+    plt.close('all')
+    
+    make it so steps 1 - 4 in generate_colour_surrogate are only calculated once, not every time we generate a surrogate :/
     '''    
           

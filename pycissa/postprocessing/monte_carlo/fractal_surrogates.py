@@ -922,7 +922,7 @@ def generate_colour_surrogate(data:     np.ndarray,
                                seed:            int|None) -> np.ndarray:
     from pycissa.postprocessing.monte_carlo.montecarlo import run_monte_carlo_test
     #1) first run monte carlo with random permutation to estimate significant components so we can remove them from the periodogram
-    temp_result,_ = run_monte_carlo_test(data,L,psd,results,
+    temp_result,_ = run_monte_carlo_test(data,L,psd,Z,results,frequencies,
                              alpha = alpha,
                              K_surrogates = 1,
                              surrogates   = 'random_permutation',
@@ -964,4 +964,7 @@ def generate_colour_surrogate(data:     np.ndarray,
         
     return x_surrogate   
 
-    
+
+
+
+

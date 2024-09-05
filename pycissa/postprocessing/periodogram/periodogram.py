@@ -305,7 +305,8 @@ def segmented_regression(my_freq         :  list,
         
     ms = piecewise_regression.ModelSelection(np.log10(my_freq), 
                                              np.log10(my_psd), 
-                                             max_breakpoints=max_breakpoints,n_boot=n_boot)
+                                             max_breakpoints=max_breakpoints,n_boot=n_boot,
+                                             verbose=False)
     
     model_summaries = [x for x in ms.model_summaries if x['converged'] == True and x['n_breakpoints'] == 1]
     models = [x for x in ms.models if x.best_muggeo and x.n_breakpoints == 1]
@@ -665,8 +666,10 @@ def generate_peridogram_plots(
     all_hurst,detrended_hurst = calculate_hurst_exponent(x_trend,x_detrended)
     
     #rolling Hurst exponent
-    rolling_hurst,rolling_hurst_detrended = calculate_rolling_hurst_exponent(x_trend,x_detrended,window = hurst_window,**kwargs)
-    fig_rolling_hurst = plot_rolling_hurst(rolling_hurst,rolling_hurst_detrended,hurst_window)
+    #turning this off for now...
+    rolling_hurst,rolling_hurst_detrended,fig_rolling_hurst = None,None,None
+    # rolling_hurst,rolling_hurst_detrended = calculate_rolling_hurst_exponent(x_trend,x_detrended,window = hurst_window,**kwargs)
+    # fig_rolling_hurst = plot_rolling_hurst(rolling_hurst,rolling_hurst_detrended,hurst_window)
     
     
     return fig_linear, fig_segmented, fig_robust_linear, linear_slopes, segmented_slopes, robust_linear_slopes,all_hurst,detrended_hurst, fig_rolling_hurst,rolling_hurst,rolling_hurst_detrended , fig_robust_segmented,robust_segmented_results
