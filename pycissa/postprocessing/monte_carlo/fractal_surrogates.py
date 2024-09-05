@@ -903,3 +903,65 @@ def generate_coloured_noise_surrogates(x             : np.ndarray,
         y_surr = np.empty((len(x),))
         y_surr[:,] = colored_noise_2regimes(alpha_1_slope, alpha_2_slope, f_breakpoint, time) + mu
     return y_surr
+
+
+
+
+
+
+def generate_colour_surrogate(data:     np.ndarray,
+                               L:               int,
+                               psd:             np.ndarray,
+                               Z:               np.ndarray,
+                               results:         dict,
+                               alpha:           float, 
+                               surrogates:      str,
+                               sided_test:      str, 
+                               remove_trend:    bool,
+                               frequencies:     dict,
+                               seed:            int|None) -> np.ndarray:
+    from pycissa.postprocessing.monte_carlo.montecarlo import run_monte_carlo_test
+    #1) first run monte carlo with random permutation to estimate significant components so we can remove them from the periodogram
+    temp_result,_ = run_monte_carlo_test(data,L,psd,results,
+                             alpha = alpha,
+                             K_surrogates = 1,
+                             surrogates   = 'random_permutation',
+                             seed         = seed,
+                             sided_test   = sided_test, 
+                             remove_trend = remove_trend,
+                             trend_always_significant = True,
+                             plot_figure  = False,
+                             )
+    #2) group into trend + detrended
+    from pycissa.postprocessing.grouping.grouping_functions import group
+    number_of_signal_components = int(len(psd)/2 - 1)
+    I = {'trend'    :[0],
+         'detrended':[x for x in range(1,number_of_signal_components+1)]}
+    rc, sh, kg, psd_sh = group(Z,psd,I)
+    x_trend = rc['trend'].reshape(len(rc['trend']),)
+    x_detrended = rc['detrended'].reshape(len(rc['detrended']),)
+    
+    #3) get periodic compoenets
+    components_to_remove = []
+    for key_j in temp_result.get('components').keys():
+        if key_j != 'trend':
+            if temp_result['components'][key_j]['monte_carlo']['random_permutation']['alpha'][0.05]['pass']:
+                components_to_remove += temp_result['components'][key_j]['array_position']
+    
+    #4) estimate periodgram slope/s 
+    from pycissa.postprocessing.periodogram.periodogram import generate_peridogram_plots
+    _, _, _, _, _, robust_linear_slopes,_,_,_,_,_,_,robust_segmented_results  =generate_peridogram_plots(x_trend,x_detrended,psd,frequencies,significant_components=components_to_remove,alpha=alpha)
+    
+    #5) generate the surrogates
+    if surrogates == 'coloured_noise_single':
+        alpha_slope = robust_linear_slopes.get('slope')
+        x_surrogate = generate_coloured_noise_surrogates(data,alpha_slope=alpha_slope)
+    if surrogates == 'coloured_noise_segmented':
+        f_breakpoint  = robust_segmented_results.get('breakpoint')
+        alpha_1_slope = robust_segmented_results.get('slope_less_than_breakpoint').get('slope')
+        alpha_2_slope = robust_segmented_results.get('slope_greater_than_breakpoint').get('slope')
+        x_surrogate   = generate_coloured_noise_surrogates(data,f_breakpoint=f_breakpoint,alpha_1_slope=alpha_1_slope,alpha_2_slope=alpha_2_slope)
+        
+    return x_surrogate   
+
+    

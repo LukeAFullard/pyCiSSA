@@ -2,8 +2,16 @@ import numpy as np
 import copy
 import matplotlib.pyplot as plt
 
-def get_surrogate_data(data:          np.ndarray,
+def get_surrogate_data(data:            np.ndarray,
+                       L:               int,
+                       psd:             np.ndarray,
+                       Z:               np.ndarray,
+                       results:         dict,
+                       alpha:           float, 
                        surrogates:      str,
+                       sided_test:      str, 
+                       remove_trend:    bool,
+                       frequencies:     dict,
                        A_small_shuffle: float,
                        seed:            int|None) -> np.ndarray:
     '''
@@ -17,8 +25,26 @@ def get_surrogate_data(data:          np.ndarray,
     ----------
     data : np.ndarray
         DESCRIPTION: Input data
+    L : int
+        DESCRIPTION: CiSSA window length.
+    psd : np.ndarray
+        DESCRIPTION: psd of each individual eigenvalue
+    Z : np.ndarray
+        DESCRIPTION: Output CiSSA results.    
+    alpha : float, optional
+        DESCRIPTION: Significance level for surrogate hypothesis test. For example, --> 100*(1-alpha)% confidence interval. The default is 0.05 (a 95% confidence interval).    
+    results : dict
+        DESCRIPTION: Dictionary of CiSSA results    
     surrogates : str
-        DESCRIPTION: Type of surrogates to fit. One of "random_permutation", "small_shuffle", "ar1_fit"
+        DESCRIPTION: Type of surrogates to fit. One of "random_permutation", "small_shuffle", "ar1_fit", "coloured_noise"
+    sided_test : str, optional
+        DESCRIPTION: When assessing the null hypothesis, are we running a one or two-sided test? The default is 'one sided'.
+    remove_trend : bool, optional
+        DESCRIPTION: Some surrogate methods make assumptions that are violated when there is a trend in the input data. 
+                        If remove_trend = True then the trend is removed before surrogates are generated, then added back to the surrogate data after generation. See  Lucio, J. H., Valdés, R., & Rodríguez, L. R. (2012). Improvements to surrogate data methods for nonstationary time series. Physical Review E, 85(5), 056202.
+                        The default is True.
+    frequencies : dict
+        DESCRIPTION. Frequencies from the Cissa fit.                      
     A_small_shuffle : float
         DESCRIPTION: The parameter "A" in the small shuffle method. Not used for the other methods.
     seed : int|None
@@ -32,7 +58,7 @@ def get_surrogate_data(data:          np.ndarray,
     '''
     
     #check input 'surrogates' is a legitimate entry
-    all_surrogate_types = ['random_permutation','small_shuffle','ar1_fit']
+    all_surrogate_types = ['random_permutation','small_shuffle','ar1_fit', 'coloured_noise_single', 'coloured_noise_segmented']
     if surrogates not in all_surrogate_types: raise ValueError(f"The parameter surrogates must be one of {all_surrogate_types}. You entered {surrogates}.")
     
     from pycissa.postprocessing.monte_carlo.surrogates import generate_random_permutation,generate_small_shuffle,generate_ar1_evenly
@@ -42,6 +68,10 @@ def get_surrogate_data(data:          np.ndarray,
         x_surrogate = generate_small_shuffle(data,A_small_shuffle)
     if surrogates == 'ar1_fit':
         x_surrogate = generate_ar1_evenly(data,seed)
+    if surrogates in ['coloured_noise_single', 'coloured_noise_segmented']:
+        from pycissa.postprocessing.monte_carlo.fractal_surrogates import generate_colour_surrogate
+        x_surrogate = generate_colour_surrogate(data,L,psd,Z,results,alpha,surrogates,sided_test,remove_trend,frequencies,seed)
+        
         
     return x_surrogate     
 ###############################################################################
@@ -307,7 +337,9 @@ def find_significant_components(result:     dict,
 def run_monte_carlo_test(x:                        np.ndarray,
                          L:                        int,
                          psd:                      np.ndarray,
+                         Z:                        np.ndarray,
                          results:                  dict,
+                         frequencies:              dict,
                          alpha:                    float = 0.05, 
                          K_surrogates:             int = 1,
                          surrogates:               str = 'random_permutation',
@@ -337,8 +369,12 @@ def run_monte_carlo_test(x:                        np.ndarray,
         DESCRIPTION: CiSSA window length.
     psd : np.ndarray
         DESCRIPTION: psd of each individual eigenvalue
+    Z : np.ndarray
+        DESCRIPTION: Output CiSSA results.    
     results : dict
         DESCRIPTION: Dictionary of CiSSA results
+    frequencies : dict
+        DESCRIPTION. Frequencies from the Cissa fit.    
     alpha : float, optional
         DESCRIPTION: Significance level for surrogate hypothesis test. For example, --> 100*(1-alpha)% confidence interval. The default is 0.05 (a 95% confidence interval).
     K_surrogates : int, optional
@@ -347,7 +383,7 @@ def run_monte_carlo_test(x:                        np.ndarray,
                         The default is 1.
     surrogates : str, optional
         DESCRIPTION: The type of surrogates to generate for the hypothesis test.
-                        One of "random_permutation", "small_shuffle", "ar1_fit".
+                        One of "random_permutation", "small_shuffle", "ar1_fit", "coloured_noise".
                         The default is 'random_permutation'.
     seed : int|None, optional
         DESCRIPTION: Random seed for reproducability. The default is None.
@@ -398,7 +434,8 @@ def run_monte_carlo_test(x:                        np.ndarray,
     surrogate_results = {}
     for surrogate_i in range(0,number_of_surrogates):
         #generate surrogates
-        x_surrogate = get_surrogate_data(x_copy,surrogates,A_small_shuffle,seed)
+        x_surrogate = get_surrogate_data(x_copy,L,psd,Z,result,alpha,surrogates,sided_test,remove_trend,frequencies,A_small_shuffle,seed)
+
         
         #add the trend back in
         if remove_trend:
