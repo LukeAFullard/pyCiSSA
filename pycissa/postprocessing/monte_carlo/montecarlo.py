@@ -13,6 +13,10 @@ def get_surrogate_data(data:            np.ndarray,
                        sided_test:      str, 
                        remove_trend:    bool,
                        frequencies:     dict,
+                       alpha_slope:     float|None,
+                       f_breakpoint:    float|None,
+                       alpha_1_slope:   float|None,
+                       alpha_2_slope:   float|None,
                        A_small_shuffle: float,
                        seed:            int|None) -> np.ndarray:
     '''
@@ -45,7 +49,15 @@ def get_surrogate_data(data:            np.ndarray,
                         If remove_trend = True then the trend is removed before surrogates are generated, then added back to the surrogate data after generation. See  Lucio, J. H., Valdés, R., & Rodríguez, L. R. (2012). Improvements to surrogate data methods for nonstationary time series. Physical Review E, 85(5), 056202.
                         The default is True.
     frequencies : dict
-        DESCRIPTION. Frequencies from the Cissa fit.                      
+        DESCRIPTION. Frequencies from the Cissa fit.     
+    alpha_slope : float|None,
+        DESCRIPTION. Fitted slope of linear periodogram.
+    f_breakpoint : float|None,
+        DESCRIPTION. Breakpoint of segmented linear periodogram.
+    alpha_1_slope : float|None,
+        DESCRIPTION. Lower fitted slope of segmented linear periodogram.
+    alpha_2_slope : float|None,                
+        DESCRIPTION. Upper fitted slope of segmented linear periodogram.
     A_small_shuffle : float
         DESCRIPTION: The parameter "A" in the small shuffle method. Not used for the other methods.
     seed : int|None
@@ -70,10 +82,9 @@ def get_surrogate_data(data:            np.ndarray,
     if surrogates == 'ar1_fit':
         x_surrogate = generate_ar1_evenly(data,seed)
     if surrogates in ['coloured_noise_single', 'coloured_noise_segmented']:
-        warnings.filterwarnings('ignore') #suppressing warnings here as they are driving me crazy...
         from pycissa.postprocessing.monte_carlo.fractal_surrogates import generate_colour_surrogate
-        x_surrogate = generate_colour_surrogate(data,L,psd,Z,results,alpha,surrogates,sided_test,remove_trend,frequencies,seed)
-        warnings.filterwarnings('default')
+        x_surrogate = generate_colour_surrogate(data,alpha_slope,f_breakpoint,alpha_1_slope,alpha_2_slope,surrogates)
+        
         
     return x_surrogate     
 ###############################################################################
@@ -431,12 +442,20 @@ def run_monte_carlo_test(x:                        np.ndarray,
     
     #get psd
     pzz,nft,psd_length = get_paired_psd(L,psd)
+    
+    alpha_slope,f_breakpoint,alpha_1_slope,alpha_2_slope = None,None,None,None
+    if surrogates in ['coloured_noise_single', 'coloured_noise_segmented']:
+        from pycissa.postprocessing.monte_carlo.fractal_surrogates import prepare_for_coloured_surrogates
+        warnings.filterwarnings('ignore') #suppressing warnings here as they are driving me crazy...
+        alpha_slope,f_breakpoint,alpha_1_slope,alpha_2_slope = prepare_for_coloured_surrogates(x_copy,L,psd,Z,results,alpha,surrogates,sided_test,remove_trend,frequencies,seed)
+        warnings.filterwarnings('default')
+    
         
     #iterate through the surrogates
     surrogate_results = {}
     for surrogate_i in range(0,number_of_surrogates):
         #generate surrogates
-        x_surrogate = get_surrogate_data(x_copy,L,psd,Z,result,alpha,surrogates,sided_test,remove_trend,frequencies,A_small_shuffle,seed)
+        x_surrogate = get_surrogate_data(x_copy,L,psd,Z,result,alpha,surrogates,sided_test,remove_trend,frequencies,alpha_slope,f_breakpoint,alpha_1_slope,alpha_2_slope,A_small_shuffle,seed)
 
         
         #add the trend back in

@@ -905,11 +905,7 @@ def generate_coloured_noise_surrogates(x             : np.ndarray,
     return y_surr
 
 
-
-
-
-
-def generate_colour_surrogate(data:     np.ndarray,
+def prepare_for_coloured_surrogates(data:     np.ndarray,
                                L:               int,
                                psd:             np.ndarray,
                                Z:               np.ndarray,
@@ -951,15 +947,27 @@ def generate_colour_surrogate(data:     np.ndarray,
     #4) estimate periodgram slope/s 
     from pycissa.postprocessing.periodogram.periodogram import generate_peridogram_plots
     _, _, _, _, _, robust_linear_slopes,_,_,_,_,_,_,robust_segmented_results  =generate_peridogram_plots(x_trend,x_detrended,psd,frequencies,significant_components=components_to_remove,alpha=alpha)
+    alpha_slope = robust_linear_slopes.get('slope')
+    f_breakpoint  = robust_segmented_results.get('breakpoint')
+    alpha_1_slope = robust_segmented_results.get('slope_less_than_breakpoint').get('slope')
+    alpha_2_slope = robust_segmented_results.get('slope_greater_than_breakpoint').get('slope')
+    return alpha_slope,f_breakpoint,alpha_1_slope,alpha_2_slope
+
+
+
+def generate_colour_surrogate(data            :np.ndarray,
+                              alpha_slope:     float,
+                              f_breakpoint:    float,
+                              alpha_1_slope:   float,
+                              alpha_2_slope:   float,
+                              surrogates:      str,
+                               ) -> np.ndarray:
+    
     
     #5) generate the surrogates
     if surrogates == 'coloured_noise_single':
-        alpha_slope = robust_linear_slopes.get('slope')
         x_surrogate = generate_coloured_noise_surrogates(data,alpha_slope=alpha_slope)
     if surrogates == 'coloured_noise_segmented':
-        f_breakpoint  = robust_segmented_results.get('breakpoint')
-        alpha_1_slope = robust_segmented_results.get('slope_less_than_breakpoint').get('slope')
-        alpha_2_slope = robust_segmented_results.get('slope_greater_than_breakpoint').get('slope')
         x_surrogate   = generate_coloured_noise_surrogates(data,f_breakpoint=f_breakpoint,alpha_1_slope=alpha_1_slope,alpha_2_slope=alpha_2_slope)
         
     return x_surrogate   
