@@ -12,12 +12,12 @@ def plot_time_series(t: np.ndarray,
     fig, axs = plt.subplots(figsize=(10, 8), sharex=True)
     
     # Plot for the top subplot
-    axs[0].plot(t, x, 'k', label='original time-series')
+    axs.plot(t, x, 'k', label='original time-series')
     
     # Set labels and title for the top subplot
-    axs[0].set_ylabel('value')
-    axs[0].legend(loc='upper left')
-    axs[0].set_title('Time Series')
+    axs.set_ylabel('value')
+    axs.legend(loc='upper left')
+    axs.set_title('Time Series')
     
     # Adjust layout
     plt.tight_layout()

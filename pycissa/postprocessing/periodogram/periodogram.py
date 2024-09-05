@@ -84,6 +84,140 @@ def linear_fit(my_freq : list,
     return ols_result
 ###############################################################################
 ###############################################################################
+def robust_segmented_fit(my_freq         : list,
+                         my_psd          : list,
+                         break_point     : float,
+                         alpha           : float=0.05) -> dict:
+    '''
+    Function to reanalyse the segmented result but using robust regression.
+    Takes the break_point from standard segmented regression then uses robust regression on the left and then right sides of this point.
+
+    Parameters
+    ----------
+    my_freq : list
+        DESCRIPTION. List of frequencies
+    my_psd : list
+        DESCRIPTION. List of psd. 
+    break_point : float
+        DESCRIPTION. Frequency of the breakpoint in segmented fit.
+    alpha : float, optional
+        DESCRIPTION. The default is 0.05. Significance level for calculating confidence interval (CI = 100*(1-alpha)).
+
+    Returns
+    -------
+    robust_segmented_result : dict
+        DESCRIPTION. Dictionary of results.
+ 
+    '''
+    robust_slopes = {}
+    #deal with lower frequency
+    lower_freq = [x for x in my_freq if x<=break_point]
+    lower_psd  = [x for x,y in zip(my_psd,my_freq) if y <= break_point]
+    #deal with upper frequency
+    upper_freq = [x for x in my_freq if x>=break_point]
+    upper_psd  = [x for x,y in zip(my_psd,my_freq) if y >= break_point]
+    
+    lower_result = robust_linear_fit(lower_freq,lower_psd,alpha)
+    upper_result = robust_linear_fit(upper_freq,upper_psd,alpha)
+    
+    
+    robust_segmented_result = {
+        'lower_freq'                    : lower_freq,
+        'upper_freq'                    : upper_freq,
+        'breakpoint'                    : break_point,
+        'slope_less_than_breakpoint'    : {'constant'             : lower_result.get('constant').get('result'),
+                                           'slope'                : lower_result.get('slope').get('result'),
+                                           'confidence_interval'  : lower_result.get('slope').get('confidence_interval')},
+        'slope_greater_than_breakpoint' : {'constant'             : upper_result.get('constant').get('result'),
+                                           'slope'                : upper_result.get('slope').get('result'),
+                                           'confidence_interval'  : upper_result.get('slope').get('confidence_interval')},
+        }
+    return robust_segmented_result
+###############################################################################
+###############################################################################   
+def plot_robust_segmented_linear_fit(my_freq                  : list,
+                                    my_psd                    : list,
+                                    alpha                     : float,
+                                    robust_segmented_result   : dict,
+                                    legend_label              : str = 'Robust segmented fit', 
+                                    title                     : str = 'Periodogram - robust segmented fit',
+                                    **kwargs):
+        '''
+        Function to plot a scatter plot of the data + the linear fit.
+
+        Parameters
+        ----------
+        my_freq : list
+            DESCRIPTION. List of frequencies.
+        my_psd : list
+            DESCRIPTION. List of psd.
+        alpha : float
+            DESCRIPTION. Significance level for calculating confidence interval (CI = 100*(1-alpha)).
+        robust_segmented_result : dict
+            DESCRIPTION. Dictionary of fit results.
+        legend_label : str, optional
+            DESCRIPTION. The default is 'linear fit'. Legend label text.
+        title : str, optional
+            DESCRIPTION. The default is 'Periodogram - linear fit'. Title text.
+        **kwargs : TYPE
+            DESCRIPTION. Plotting kwargs to pass to matplotlib.
+
+        Returns
+        -------
+        fig : figure
+            DESCRIPTION. Plot of log10(frequency) vs log10(psd) with a linear fit.
+
+        '''
+        fig, ax = plt.subplots(figsize=(8, 6))
+        
+        #scatter data
+        ax.scatter(np.log10(my_freq), np.log10(my_psd),color='k',label='data', **kwargs)
+        
+        #plot break point
+        ax.axvline(np.log10(robust_segmented_result.get('breakpoint')), **kwargs)
+        
+        #axes labels etc
+        ax.set_ylabel('log(psd)')
+        ax.set_xlabel('log(frequency) (cycles per timestep)')
+        ax.legend(loc='upper right')
+        fig.suptitle('Periodogram - robust segmented linear fit', y=1.15, fontsize=18)
+       
+        #add line:
+        lower_freq = robust_segmented_result.get('lower_freq')
+        xx_plot = np.linspace(min(np.log10(lower_freq)), np.log10(robust_segmented_result.get('breakpoint')), 100)
+        yy_plot = robust_segmented_result.get('slope_less_than_breakpoint').get('constant') + xx_plot*robust_segmented_result.get('slope_less_than_breakpoint').get('slope')
+        ax.plot(xx_plot, yy_plot,'r',label=legend_label, **kwargs)   
+        
+        upper_freq = robust_segmented_result.get('upper_freq')
+        xx_plot = np.linspace(np.log10(robust_segmented_result.get('breakpoint')), max(np.log10(upper_freq)), 100)
+        yy_plot = robust_segmented_result.get('slope_greater_than_breakpoint').get('constant') + xx_plot*robust_segmented_result.get('slope_greater_than_breakpoint').get('slope')
+        ax.plot(xx_plot, yy_plot,'r', **kwargs)   
+        
+        
+        # Extract and format values
+        breakpoint1_estimate = robust_segmented_result.get('breakpoint')
+        alpha1_estimate = robust_segmented_result.get('slope_less_than_breakpoint').get('slope')
+        alpha1_ci = robust_segmented_result.get('slope_less_than_breakpoint').get('confidence_interval')
+        alpha1_ci_lower, alpha1_ci_upper = alpha1_ci  # Unpack tuple
+        
+        alpha2_estimate = robust_segmented_result.get('slope_greater_than_breakpoint').get('slope')
+        alpha2_ci = robust_segmented_result.get('slope_greater_than_breakpoint').get('confidence_interval')
+        alpha2_ci_lower, alpha2_ci_upper = alpha2_ci  # Unpack tuple
+        
+        # Set title with formatted values
+        title_text = (
+            f"Slopes with {int(100 * (1 - alpha))}% confidence interval.\n"
+            f"For frequency < {breakpoint1_estimate:.4f}, slope: {alpha1_estimate:.3f} "
+            f"({alpha1_ci_lower:.3f} - {alpha1_ci_upper:.3f})\n"
+            f"For frequency > {breakpoint1_estimate:.4f}, slope: {alpha2_estimate:.3f} "
+            f"({alpha2_ci_lower:.3f} - {alpha2_ci_upper:.3f})"
+        )
+        
+        ax.set_title(title_text, fontsize=10)
+        
+        return fig
+###############################################################################
+###############################################################################
 def robust_linear_fit(my_freq : list,
                       my_psd  : list,
                       alpha   : float=0.05) -> dict:
@@ -515,7 +649,17 @@ def generate_peridogram_plots(
                                         'confidence_interval' : model_summaries[0]['estimates']['alpha2']['confidence_interval'],
                                         }
             }
-    else: segmented_slopes = {}
+        
+        #make robust segmented regression
+        robust_segmented_results = robust_segmented_fit(my_freq,my_psd,segmented_slopes.get('breakpoint'),alpha)
+        #plot robust segmented results
+        fig_robust_segmented = plot_robust_segmented_linear_fit(my_freq,my_psd, alpha,robust_segmented_results,**kwargs)
+        
+    else: 
+        segmented_slopes = {}
+        robust_segmented_results = {}
+        fig_robust_segmented = None
+        
             
     #Hurst exponent
     all_hurst,detrended_hurst = calculate_hurst_exponent(x_trend,x_detrended)
@@ -525,7 +669,7 @@ def generate_peridogram_plots(
     fig_rolling_hurst = plot_rolling_hurst(rolling_hurst,rolling_hurst_detrended,hurst_window)
     
     
-    return fig_linear, fig_segmented, fig_robust_linear, linear_slopes, segmented_slopes, robust_linear_slopes,all_hurst,detrended_hurst, fig_rolling_hurst,rolling_hurst,rolling_hurst_detrended 
+    return fig_linear, fig_segmented, fig_robust_linear, linear_slopes, segmented_slopes, robust_linear_slopes,all_hurst,detrended_hurst, fig_rolling_hurst,rolling_hurst,rolling_hurst_detrended , fig_robust_segmented,robust_segmented_results
     
     
          

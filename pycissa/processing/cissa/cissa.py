@@ -1081,20 +1081,23 @@ class Cissa:
             if len(significant_components) == 0:
                 significant_components = None
             
-        fig_linear, fig_segmented, fig_robust_linear, linear_slopes, segmented_slopes, robust_linear_slopes,all_hurst,detrended_hurst,fig_rolling_hurst,rolling_hurst,rolling_hurst_detrended  =generate_peridogram_plots(self.x_trend,self.x_periodic+self.x_noise,self.psd,self.frequencies,significant_components=significant_components,alpha=alpha,max_breakpoints=max_breakpoints,n_boot=n_boot,hurst_window=hurst_window)
-        self.figures.get('cissa').update({'figure_periodogram_linear'       :fig_linear})
-        self.figures.get('cissa').update({'figure_periodogram_robust_linear':fig_robust_linear})
-        self.figures.get('cissa').update({'figure_periodogram_segmented'    :fig_segmented})
-        self.figures.get('cissa').update({'figure_rolling_Hurst'            :fig_rolling_hurst})
+        fig_linear, fig_segmented, fig_robust_linear, linear_slopes, segmented_slopes, robust_linear_slopes,all_hurst,detrended_hurst,fig_rolling_hurst,rolling_hurst,rolling_hurst_detrended,fig_robust_segmented,robust_segmented_results  =generate_peridogram_plots(self.x_trend,self.x_periodic+self.x_noise,self.psd,self.frequencies,significant_components=significant_components,alpha=alpha,max_breakpoints=max_breakpoints,n_boot=n_boot,hurst_window=hurst_window)
+        self.figures.get('cissa').update({'figure_periodogram_linear'           :fig_linear})
+        self.figures.get('cissa').update({'figure_periodogram_robust_linear'    :fig_robust_linear})
+        self.figures.get('cissa').update({'figure_periodogram_segmented'        :fig_segmented})
+        self.figures.get('cissa').update({'figure_periodogram_robust_segmented' :fig_robust_segmented})
+        self.figures.get('cissa').update({'figure_rolling_Hurst'                :fig_rolling_hurst})
         
         
-        self.results.get('cissa').get('fractal scaling results').update({'linear_periodogram_slopes'        : linear_slopes,
-                                                                         'robust_linear_periodogram_slopes' : robust_linear_slopes,
-                                                                         'segmented_periodogram_slopes'     : segmented_slopes,
-                                                                         'full Hurst exponent'              : all_hurst,
-                                                                         'detrended Hurst exponent'         : detrended_hurst,
-                                                                         'rolling Hurst exponent'           : rolling_hurst,
-                                                                         'detrended rolling Hurst exponent' :rolling_hurst_detrended })
+        
+        self.results.get('cissa').get('fractal scaling results').update({'linear_periodogram_slopes'           : linear_slopes,
+                                                                         'robust_linear_periodogram_slopes'    : robust_linear_slopes,
+                                                                         'segmented_periodogram_slopes'        : segmented_slopes,
+                                                                         'full Hurst exponent'                 : all_hurst,
+                                                                         'detrended Hurst exponent'            : detrended_hurst,
+                                                                         'rolling Hurst exponent'              : rolling_hurst,
+                                                                         'detrended rolling Hurst exponent'    : rolling_hurst_detrended,
+                                                                         'robust_segmented_periodogram_slopes' : robust_segmented_results})
         
         return self
     #--------------------------------------------------------------------------
@@ -1330,126 +1333,7 @@ class Cissa:
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
     
-    #--------------------------------------------------------------------------
-    #-------------------------------------------------------------------------- 
-    def auto_cissa(self,
-                   L: int = None,
-                   **kwargs):
-        #if L is not provided then we take L as (the floor of) half the series length
-        if not L:
-            L = int(np.floor(len(self.x)/2))
-            print(f"No input parameter L provided. Taking L as {L}.")
-        
-        #fix censoring and nan
-        print('Checking for censored or nan data...')
-        _ = self.auto_fix_censoring_nan(L,**kwargs)
-        
-        #plot original time series
-        _ = self.plot_original_time_series()
-        
-        #run cissa
-        print('RUNNING CISSA!')
-        _ = self.fit(
-                L,
-                extension_type = kwargs.get('extension_type','AR_LR'),
-                multi_thread_run = kwargs.get('multi_thread_run',True),
-                generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False))
-        
-        print('Performing monte-carlo significance analysis...')
-        #run monte carlo
-        _ = self.post_run_monte_carlo_analysis(
-                                     alpha                    = kwargs.get('alpha',0.05), 
-                                     K_surrogates             = kwargs.get('K_surrogates',1),  
-                                     surrogates               = kwargs.get('surrogates','random_permutation'), 
-                                     seed                     = kwargs.get('seed',None),   
-                                     sided_test               = kwargs.get('sided_test','one sided'),   
-                                     remove_trend             = kwargs.get('remove_trend',True),  
-                                     trend_always_significant = kwargs.get('trend_always_significant',True),
-                                     A_small_shuffle          = kwargs.get('A_small_shuffle',1.), 
-                                     extension_type           = kwargs.get('extension_type','AR_LR'), 
-                                     multi_thread_run         = kwargs.get('multi_thread_run',True), 
-                                     generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False), 
-                                     )
-        
-        #run grouping
-        print('Grouping components...')
-        _ = self.post_group_components(
-                                      grouping_type            = kwargs.get('grouping_type','monte_carlo'),
-                                      eigenvalue_proportion    = kwargs.get('eigenvalue_proportion',0.9),
-                                      number_of_groups_to_drop = kwargs.get('number_of_groups_to_drop',5),
-                                      include_trend            = kwargs.get('include_trend',True),
-                                      check_noise_statistics   = kwargs.get('check_noise_statistics',True),
-                                      noise_alpha              = kwargs.get('noise_alpha',0.05),
-                                      ljung_box_lags           = kwargs.get('ljung_box_lags',12),
-                                      plot_result              = kwargs.get('plot_result',True))  
-        
-        #plot frequency time graphs
-        print('Running frequency time analysis...')
-        _ = self.post_run_frequency_time_analysis(
-                                        data_per_period   = kwargs.get('data_per_period',1),
-                                        period_name       = kwargs.get('period_name',''),
-                                        t_unit            = kwargs.get('t_unit',''),
-                                        plot_frequency    = kwargs.get('plot_frequency',True),
-                                        plot_period       = kwargs.get('plot_period',True),
-                                        logplot_frequency = kwargs.get('logplot_frequency',True),
-                                        logplot_period    = kwargs.get('logplot_period',False),
-                                        normalise_plots   = kwargs.get('normalise_plots',False),
-                                        height_variable   = kwargs.get('height_variable','power'),
-                                        height_unit       = kwargs.get('height_unit',''))
-        
-        #plot trend
-        print('Analysing trend...')
-        _ = self.post_analyse_trend(
-                          trend_type     = kwargs.get('trend_type','rolling_OLS'),
-                          t_unit         = kwargs.get('t_unit',''),
-                          data_unit      = kwargs.get('data_unit',''),
-                          alphas         = kwargs.get('alphas',[x/20 for x in range(1,20)]),
-                          timestep       = kwargs.get('timestep',1),
-                          timestep_unit  = kwargs.get('timestep_unit',''),
-                          include_data   = kwargs.get('include_data',True),
-                          legend_loc     = kwargs.get('legend_loc',2),
-                          shade_area     = kwargs.get('shade_area',True),
-                          xaxis_rotation = kwargs.get('xaxis_rotation',270),
-                          window         = kwargs.get('window',12)
-                          )
-        
-        #plot autocorrelation
-        print('Calculating time-series autocorrelation...')
-        if not kwargs.get('noise_components'):
-            kwargs.update({'monte_carlo_noise':True})
-        _ = self.plot_autocorrelation(
-                                    noise_components  = kwargs.get('noise_components',None),
-                                    monte_carlo_noise = kwargs.get('monte_carlo_noise',False),
-                                    acf_lags          = kwargs.get('acf_lags',None),
-                                    pacf_lags         = kwargs.get('pacf_lags',None),
-                                    alpha             = kwargs.get('alpha',0.05),
-                                    use_vlines        = kwargs.get('use_vlines',True),
-                                    adjusted          = kwargs.get('adjusted',False),
-                                    fft               = kwargs.get('fft',False),
-                                    missing           = kwargs.get('missing','none'),
-                                    zero              = kwargs.get('zero',True),
-                                    auto_ylims        = kwargs.get('auto_ylims',False),
-                                    bartlett_confint  = kwargs.get('bartlett_confint',True),
-                                    pacf_method       = kwargs.get('pacf_method','ywm'),
-                                    acf_color         = kwargs.get('acf_color','blue'),
-                                    pacf_color        = kwargs.get('pacf_color','blue'),
-                                    title_size        = kwargs.get('title_size',14),
-                                    label_size        = kwargs.get('label_size',12)
-                                    )
-        
-        # run periodogram analysis
-        print("running peridogram analysis")
-        _ = self.post_periodogram_analysis(     
-                                      significant_components             = kwargs.get('significant_components',None),
-                                      monte_carlo_significant_components = kwargs.get('monte_carlo_significant_components',True),
-                                      alpha                              = kwargs.get('alpha',0.05),
-                                      max_breakpoints                    = kwargs.get('max_breakpoints',2),
-                                      n_boot                             = kwargs.get('n_boot',500),
-                                      hurst_window                       = kwargs.get('hurst_window',12),
-                                      )
-        print("Auto Cissa Complete!")
-        return self
-        
+    
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
     def auto_denoise(self,
@@ -1647,6 +1531,127 @@ class Cissa:
                           )
             
         return self
+    
+    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------- 
+    def auto_cissa(self,
+                   L: int = None,
+                   **kwargs):
+        #if L is not provided then we take L as (the floor of) half the series length
+        if not L:
+            L = int(np.floor(len(self.x)/2))
+            print(f"No input parameter L provided. Taking L as {L}.")
+        
+        #fix censoring and nan
+        print('Checking for censored or nan data...')
+        _ = self.auto_fix_censoring_nan(L,**kwargs)
+        
+        #plot original time series
+        _ = self.plot_original_time_series()
+        
+        #run cissa
+        print('RUNNING CISSA!')
+        _ = self.fit(
+                L,
+                extension_type = kwargs.get('extension_type','AR_LR'),
+                multi_thread_run = kwargs.get('multi_thread_run',True),
+                generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False))
+        
+        print('Performing monte-carlo significance analysis...')
+        #run monte carlo
+        _ = self.post_run_monte_carlo_analysis(
+                                     alpha                    = kwargs.get('alpha',0.05), 
+                                     K_surrogates             = kwargs.get('K_surrogates',1),  
+                                     surrogates               = kwargs.get('surrogates','random_permutation'), 
+                                     seed                     = kwargs.get('seed',None),   
+                                     sided_test               = kwargs.get('sided_test','one sided'),   
+                                     remove_trend             = kwargs.get('remove_trend',True),  
+                                     trend_always_significant = kwargs.get('trend_always_significant',True),
+                                     A_small_shuffle          = kwargs.get('A_small_shuffle',1.), 
+                                     extension_type           = kwargs.get('extension_type','AR_LR'), 
+                                     multi_thread_run         = kwargs.get('multi_thread_run',True), 
+                                     generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False), 
+                                     )
+        
+        #run grouping
+        print('Grouping components...')
+        _ = self.post_group_components(
+                                      grouping_type            = kwargs.get('grouping_type','monte_carlo'),
+                                      eigenvalue_proportion    = kwargs.get('eigenvalue_proportion',0.9),
+                                      number_of_groups_to_drop = kwargs.get('number_of_groups_to_drop',5),
+                                      include_trend            = kwargs.get('include_trend',True),
+                                      check_noise_statistics   = kwargs.get('check_noise_statistics',True),
+                                      noise_alpha              = kwargs.get('noise_alpha',0.05),
+                                      ljung_box_lags           = kwargs.get('ljung_box_lags',12),
+                                      plot_result              = kwargs.get('plot_result',True))  
+        
+        #plot frequency time graphs
+        print('Running frequency time analysis...')
+        _ = self.post_run_frequency_time_analysis(
+                                        data_per_period   = kwargs.get('data_per_period',1),
+                                        period_name       = kwargs.get('period_name',''),
+                                        t_unit            = kwargs.get('t_unit',''),
+                                        plot_frequency    = kwargs.get('plot_frequency',True),
+                                        plot_period       = kwargs.get('plot_period',True),
+                                        logplot_frequency = kwargs.get('logplot_frequency',True),
+                                        logplot_period    = kwargs.get('logplot_period',False),
+                                        normalise_plots   = kwargs.get('normalise_plots',False),
+                                        height_variable   = kwargs.get('height_variable','power'),
+                                        height_unit       = kwargs.get('height_unit',''))
+        
+        #plot trend
+        print('Analysing trend...')
+        _ = self.post_analyse_trend(
+                          trend_type     = kwargs.get('trend_type','rolling_OLS'),
+                          t_unit         = kwargs.get('t_unit',''),
+                          data_unit      = kwargs.get('data_unit',''),
+                          alphas         = kwargs.get('alphas',[x/20 for x in range(1,20)]),
+                          timestep       = kwargs.get('timestep',1),
+                          timestep_unit  = kwargs.get('timestep_unit',''),
+                          include_data   = kwargs.get('include_data',True),
+                          legend_loc     = kwargs.get('legend_loc',2),
+                          shade_area     = kwargs.get('shade_area',True),
+                          xaxis_rotation = kwargs.get('xaxis_rotation',270),
+                          window         = kwargs.get('window',12)
+                          )
+        
+        #plot autocorrelation
+        print('Calculating time-series autocorrelation...')
+        if not kwargs.get('noise_components'):
+            kwargs.update({'monte_carlo_noise':True})
+        _ = self.plot_autocorrelation(
+                                    noise_components  = kwargs.get('noise_components',None),
+                                    monte_carlo_noise = kwargs.get('monte_carlo_noise',False),
+                                    acf_lags          = kwargs.get('acf_lags',None),
+                                    pacf_lags         = kwargs.get('pacf_lags',None),
+                                    alpha             = kwargs.get('alpha',0.05),
+                                    use_vlines        = kwargs.get('use_vlines',True),
+                                    adjusted          = kwargs.get('adjusted',False),
+                                    fft               = kwargs.get('fft',False),
+                                    missing           = kwargs.get('missing','none'),
+                                    zero              = kwargs.get('zero',True),
+                                    auto_ylims        = kwargs.get('auto_ylims',False),
+                                    bartlett_confint  = kwargs.get('bartlett_confint',True),
+                                    pacf_method       = kwargs.get('pacf_method','ywm'),
+                                    acf_color         = kwargs.get('acf_color','blue'),
+                                    pacf_color        = kwargs.get('pacf_color','blue'),
+                                    title_size        = kwargs.get('title_size',14),
+                                    label_size        = kwargs.get('label_size',12)
+                                    )
+        
+        # run periodogram analysis
+        print("running peridogram analysis")
+        _ = self.post_periodogram_analysis(     
+                                      significant_components             = kwargs.get('significant_components',None),
+                                      monte_carlo_significant_components = kwargs.get('monte_carlo_significant_components',True),
+                                      alpha                              = kwargs.get('alpha',0.05),
+                                      max_breakpoints                    = kwargs.get('max_breakpoints',2),
+                                      n_boot                             = kwargs.get('n_boot',500),
+                                      hurst_window                       = kwargs.get('hurst_window',12),
+                                      )
+        print("Auto Cissa Complete!")
+        return self
+        
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
 
@@ -1659,5 +1664,7 @@ class Cissa:
     function commenting!
     fractal noise surrogates (pyleoclim)
     predict method (TO DO, maybe using MAPIE?)
+    install sklearn, Mapie
+    add option to center data
     '''    
           
