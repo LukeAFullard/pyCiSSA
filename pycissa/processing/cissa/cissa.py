@@ -1,5 +1,6 @@
 import numpy as np
 import warnings
+import matplotlib.pyplot as plt
 
 
 def initial_data_checks(t: np.ndarray, x: np.ndarray):
@@ -201,6 +202,7 @@ class Cissa:
         #----------------------------------------------------------------------
         fig = plot_time_series(self.t,self.x)
         self.figures['cissa'].update({'figure_original_time_series':fig})
+        if plt.get_fignums(): plt.close('all')
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
@@ -385,6 +387,7 @@ class Cissa:
                             })
         from pycissa.preprocessing.data_cleaning.data_cleaning import detect_nan_data
         self.isnan = detect_nan_data(self.x)
+        if plt.get_fignums(): plt.close('all')
 
         return self
     #--------------------------------------------------------------------------
@@ -703,6 +706,7 @@ class Cissa:
         self.data_per_period = data_per_period
         self.period_name     = period_name
         self.t_unit          = t_unit
+        if plt.get_fignums(): plt.close('all')
         
         return self
     #--------------------------------------------------------------------------
@@ -810,7 +814,7 @@ class Cissa:
             'trend_confidence'                  : self.trend_confidence
             })
         self.results = results
-            
+        if plt.get_fignums(): plt.close('all')    
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
@@ -895,7 +899,7 @@ class Cissa:
         self.results['cissa']['model parameters'].update({'monte_carlo_surrogate_type':surrogates}) 
         self.results['cissa']['model parameters'].update({'monte_carlo_alpha':alpha}) 
         self.figures.get('cissa').update({'figure_monte_carlo':figure_monte_carlo})
-        
+        if plt.get_fignums(): plt.close('all')
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
@@ -1025,7 +1029,7 @@ class Cissa:
             
         
 
-        
+        if plt.get_fignums(): plt.close('all')
         return self
     
     #--------------------------------------------------------------------------
@@ -1100,7 +1104,7 @@ class Cissa:
                                                                          'rolling Hurst exponent'              : rolling_hurst,
                                                                          'detrended rolling Hurst exponent'    : rolling_hurst_detrended,
                                                                          'robust_segmented_periodogram_slopes' : robust_segmented_results})
-        
+        if plt.get_fignums(): plt.close('all')
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
@@ -1268,6 +1272,7 @@ class Cissa:
                                               )
             self.figures.get('cissa').update({'figure_autocorrelation_noise':fig2}) 
         ######################################################################
+        if plt.get_fignums(): plt.close('all')
         return self
                 
 
@@ -1330,7 +1335,7 @@ class Cissa:
                 x_plot = self.x
             fig = yearly_boxplots(self.t,x_plot,bar_width=bar_width)
             self.figures.get('cissa').update({'figure_yearly_seasonal_box':fig}) 
-            
+        if plt.get_fignums(): plt.close('all')    
         return self        
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
@@ -1410,7 +1415,8 @@ class Cissa:
                                  self.x_denoised
                                         )
             self.figures.get('cissa').update({'figure_denoised':fig})
-        
+        if plt.get_fignums(): plt.close('all')
+
         return self
          
     #--------------------------------------------------------------------------
@@ -1471,7 +1477,7 @@ class Cissa:
 
             self.figures.get('cissa').update({'figure_detrended':fig})
             
-            
+        if plt.get_fignums(): plt.close('all')    
         return self
         
         
@@ -1669,8 +1675,7 @@ class Cissa:
     install sklearn, Mapie
     add option to center data (HARD)
     
-    plt.close('all')
+    if plt.get_fignums(): plt.close('all')
     
-    make it so steps 1 - 4 in generate_colour_surrogate are only calculated once, not every time we generate a surrogate :/
     '''    
           
