@@ -83,9 +83,7 @@ def get_surrogate_data(data:            np.ndarray,
         x_surrogate = generate_ar1_evenly(data,seed)
     if surrogates in ['coloured_noise_single', 'coloured_noise_segmented']:
         from pycissa.postprocessing.monte_carlo.fractal_surrogates import generate_colour_surrogate
-        warnings.filterwarnings('ignore') #suppressing warnings here as they are driving me crazy...
         x_surrogate = generate_colour_surrogate(data,alpha_slope,f_breakpoint,alpha_1_slope,alpha_2_slope,surrogates)
-        warnings.filterwarnings('default')
         
         
     return x_surrogate     
@@ -448,9 +446,8 @@ def run_monte_carlo_test(x:                        np.ndarray,
     alpha_slope,f_breakpoint,alpha_1_slope,alpha_2_slope = None,None,None,None
     if surrogates in ['coloured_noise_single', 'coloured_noise_segmented']:
         from pycissa.postprocessing.monte_carlo.fractal_surrogates import prepare_for_coloured_surrogates
-        warnings.filterwarnings('ignore') #suppressing warnings here as they are driving me crazy...
         alpha_slope,f_breakpoint,alpha_1_slope,alpha_2_slope = prepare_for_coloured_surrogates(x_copy,L,psd,Z,results,alpha,surrogates,sided_test,remove_trend,frequencies,seed)
-        warnings.filterwarnings('default')
+        
     
         
     #iterate through the surrogates

@@ -270,8 +270,8 @@ def robust_linear_fit(my_freq : list,
 ###############################################################################
 def segmented_regression(my_freq         :  list,
                          my_psd          :  list,
-                         max_breakpoints : int = 2,
-                         n_boot          : int = 500
+                         max_breakpoints :  int = 1,
+                         n_boot          :  int = 500
                          )-> tuple[list,list]:
     '''
     Function to perform segmented regression (multiple linear fits) to the log10(psd) vs log10(frequency).
@@ -287,7 +287,7 @@ def segmented_regression(my_freq         :  list,
     my_psd : list
         DESCRIPTION. List of psd.
     max_breakpoints : int, optional
-        DESCRIPTION. The default is 2. Max number of linear breakpoints to consider.
+        DESCRIPTION. The default is 1. Max number of linear breakpoints to consider.
     n_boot : int, optional
         DESCRIPTION. The default is 500. Number of bootstraps for calclating confidence intervals on the breakpoint location.
 
@@ -304,12 +304,10 @@ def segmented_regression(my_freq         :  list,
     if max_breakpoints > 1:
         max_breakpoints = 1
         warnings.warn("For now max_breakpoints must be 0 or 1. This may change in the future. Resetting value to 1,")
-    warnings.filterwarnings('ignore') #suppressing warnings here as they are driving me crazy...    
     ms = piecewise_regression.ModelSelection(np.log10(my_freq), 
                                              np.log10(my_psd), 
                                              max_breakpoints=max_breakpoints,n_boot=n_boot,
                                              verbose=False)
-    warnings.filterwarnings('default')
     
     model_summaries = [x for x in ms.model_summaries if x['converged'] == True and x['n_breakpoints'] == 1]
     models = [x for x in ms.models if x.best_muggeo and x.n_breakpoints == 1]
