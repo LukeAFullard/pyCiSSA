@@ -78,13 +78,13 @@ def CORRELATION(x, y=None, maxlags=None, norm='unbiased'):
 
     .. math::
 
-        \hat{r}_{xx} = \frac{1}{N-m}T \sum_{n=0}^{N-m-1} x[n+m]x^*[n] T
+        \hat{r}_{xx} = \frac{1}{N-m}T \sum__{n=0}^{N-m-1} x[n+m]x^*[n] T
 
     The *biased* correlation differs by the front factor only:
 
     .. math::
 
-        \check{r}_{xx} = \frac{1}{N}T \sum_{n=0}^{N-m-1} x[n+m]x^*[n] T
+        \check{r}_{xx} = \frac{1}{N}T \sum__{n=0}^{N-m-1} x[n+m]x^*[n] T
 
     with :math:`0\leq m\leq N-1`.
 
@@ -137,29 +137,29 @@ def CORRELATION(x, y=None, maxlags=None, norm='unbiased'):
         nk = N - k - 1
 
         if realdata == True:
-            sum = 0
+            sum_ = 0
             for j in range(0, nk+1):
-                sum = sum + x[j+k] * y[j]
+                sum_ = sum_ + x[j+k] * y[j]
         else:
-            sum = 0. + 0j
+            sum_ = 0. + 0j
             for j in range(0, nk+1):
-                sum = sum + x[j+k] * y[j].conjugate()
+                sum_ = sum_ + x[j+k] * y[j].conjugate()
         if k == 0:
             if norm in ['biased', 'unbiased']:
-                r0 = sum/float(N)
+                r0 = sum_.item()/float(N)
             elif norm is None:
-                r0 = sum
+                r0 = sum_.item()
             else:
                 r0 =  1.
         else:
             if norm == 'unbiased':
-                r[k-1] = sum / float(N-k)
+                r[k-1] = sum_.item() / float(N-k)
             elif norm == 'biased':
-                r[k-1] = sum / float(N)
+                r[k-1] = sum_.item() / float(N)
             elif norm is None:
-                r[k-1] = sum
+                r[k-1] = sum_.item()
             elif norm == 'coeff':
-                r[k-1] =  sum/(rmsx*rmsy)/float(N)
+                r[k-1] =  sum_.item()/(rmsx*rmsy)/float(N)
 
     r = np.insert(r, 0, r0)
     return r
@@ -258,7 +258,7 @@ def LEVINSON(r, order=None, allow_singularity=False):
         if k == 0:
             temp = -save / P
         else:
-            #save += sum([A[j]*T[k-j-1] for j in range(0,k)])
+            #save += sum_([A[j]*T[k-j-1] for j in range(0,k)])
             for j in range(0, k):
                 save = save + A[j] * T[k-j-1]
             temp = -save / P

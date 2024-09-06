@@ -83,7 +83,9 @@ def get_surrogate_data(data:            np.ndarray,
         x_surrogate = generate_ar1_evenly(data,seed)
     if surrogates in ['coloured_noise_single', 'coloured_noise_segmented']:
         from pycissa.postprocessing.monte_carlo.fractal_surrogates import generate_colour_surrogate
+        warnings.filterwarnings('ignore') #suppressing warnings here as they are driving me crazy...
         x_surrogate = generate_colour_surrogate(data,alpha_slope,f_breakpoint,alpha_1_slope,alpha_2_slope,surrogates)
+        warnings.filterwarnings('default')
         
         
     return x_surrogate     
@@ -362,7 +364,7 @@ def run_monte_carlo_test(x:                        np.ndarray,
                          trend_always_significant: bool = True,
                          A_small_shuffle:          float = 1.,
                          extension_type:           str = 'AR_LR',
-                         multi_thread_run:         bool = True,
+                         multi_thread_run:         bool = False,
                          generate_toeplitz_matrix: bool = False,
                          plot_figure:              bool = True,
                          ) -> tuple[dict,plt.figure]:
@@ -414,7 +416,7 @@ def run_monte_carlo_test(x:                        np.ndarray,
     extension_type : str, optional
         DESCRIPTION: extension type for left and right ends of the time series. The default is AR_LR.
     multi_thread_run : bool, optional
-        DESCRIPTION: Flag to indicate whether the diagonal averaging is performed on multiple cpu cores (True) or not. The default is True.
+        DESCRIPTION: Flag to indicate whether the diagonal averaging is performed on multiple cpu cores (True) or not. The default is False.
     generate_toeplitz_matrix : bool, optional
         DESCRIPTION: Flag to indicate whether we need to calculate the symmetric Toeplitz matrix or not. The default is False.
     plot_figure: bool, optional

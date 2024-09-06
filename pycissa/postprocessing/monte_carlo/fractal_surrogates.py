@@ -814,7 +814,7 @@ def colored_noise(alpha, t, std = 1.0, f0=None, m=None, seed=None):
         
     return ys
 
-def colored_noise_2regimes(alpha1, alpha2, f_break, t, f0=None, m=None, seed=None):
+def colored_noise_2regimes(alpha1, alpha2, f_break, t,std = 1.0, f0=None, m=None, seed=None):
     ''' Generate a colored noise timeseries with two regimes
 
     Parameters
@@ -827,6 +827,8 @@ def colored_noise_2regimes(alpha1, alpha2, f_break, t, f0=None, m=None, seed=Non
 
     t : float
         time vector of the generated noise
+    std : float
+        standard deviation of the series. defaults to 1.0
     f0 : float
         fundamental frequency
     m : int
@@ -876,7 +878,13 @@ def colored_noise_2regimes(alpha1, alpha2, f_break, t, f0=None, m=None, seed=Non
         sin_func = np.sin(2*np.pi*k*f0*t[j] + theta)
         y[j] = np.sum(coeff*sin_func)
 
-    return y    
+    # return y  
+    if std is not None:
+        ys, _, _ = standardize(y,scale=std) # rescale 
+    else:
+        ys = y
+        
+    return ys
 
 
 
@@ -901,7 +909,7 @@ def generate_coloured_noise_surrogates(x             : np.ndarray,
         y_surr[:,] = colored_noise(alpha=alpha_slope,t=time, std = sigma) + mu
     else:
         y_surr = np.empty((len(x),))
-        y_surr[:,] = colored_noise_2regimes(alpha_1_slope, alpha_2_slope, f_breakpoint, time) + mu
+        y_surr[:,] = colored_noise_2regimes(alpha_1_slope, alpha_2_slope, f_breakpoint, time, std=sigma) + mu
     return y_surr
 
 
@@ -969,7 +977,6 @@ def generate_colour_surrogate(data            :np.ndarray,
         x_surrogate = generate_coloured_noise_surrogates(data,alpha_slope=alpha_slope)
     if surrogates == 'coloured_noise_segmented':
         x_surrogate   = generate_coloured_noise_surrogates(data,f_breakpoint=f_breakpoint,alpha_1_slope=alpha_1_slope,alpha_2_slope=alpha_2_slope)
-        
     return x_surrogate   
 
 

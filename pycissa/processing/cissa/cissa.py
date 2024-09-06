@@ -828,7 +828,7 @@ class Cissa:
                                  trend_always_significant: bool = True,
                                  A_small_shuffle:          float = 1.,
                                  extension_type:           str = 'AR_LR',
-                                 multi_thread_run:         bool = True,
+                                 multi_thread_run:         bool = False,
                                  generate_toeplitz_matrix: bool = False):
         '''
         Function to run a monte carlo significance test on components of a signal, extracted via CiSSA.
@@ -866,7 +866,7 @@ class Cissa:
         extension_type : str, optional
             DESCRIPTION: extension type for left and right ends of the time series. The default is AR_LR.
         multi_thread_run : bool, optional
-            DESCRIPTION: Flag to indicate whether the diagonal averaging is performed on multiple cpu cores (True) or not. The default is True.
+            DESCRIPTION: Flag to indicate whether the diagonal averaging is performed on multiple cpu cores (True) or not. The default is False.
         generate_toeplitz_matrix : bool, optional
             DESCRIPTION: Flag to indicate whether we need to calculate the symmetric Toeplitz matrix or not. The default is False.
 
@@ -1038,7 +1038,7 @@ class Cissa:
                                   significant_components             : list|None = None,
                                   monte_carlo_significant_components : bool = True,
                                   alpha                              : float = 0.05,
-                                  max_breakpoints                    : int = 2,
+                                  max_breakpoints                    : int = 1,
                                   n_boot                             : int = 500,
                                   hurst_window                       : int = 12,
                                   **kwargs):
@@ -1056,7 +1056,7 @@ class Cissa:
         alpha : float, optional
             DESCRIPTION. The default is 0.05. Significance level for statistical tests.
         max_breakpoints : int, optional
-            DESCRIPTION. The default is 2. Max number of breakpoints for the segmented linear fit. Currently will always be reset to 1 if >1.
+            DESCRIPTION. The default is 1. Max number of breakpoints for the segmented linear fit. Currently will always be reset to 1 if >1.
         n_boot : int, optional
             DESCRIPTION. The default is 500. Number of bootstrap iterations for the segmented linear fit.
         hurst_window : int, optional
@@ -1391,7 +1391,7 @@ class Cissa:
                                          trend_always_significant = kwargs.get('trend_always_significant',True),
                                          A_small_shuffle          = kwargs.get('A_small_shuffle',1.), 
                                          extension_type           = kwargs.get('extension_type','AR_LR'), 
-                                         multi_thread_run         = kwargs.get('multi_thread_run',True), 
+                                         multi_thread_run         = kwargs.get('multi_thread_run',False), 
                                          generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False), 
                                          )
             
@@ -1577,7 +1577,7 @@ class Cissa:
                                      trend_always_significant = kwargs.get('trend_always_significant',True),
                                      A_small_shuffle          = kwargs.get('A_small_shuffle',1.), 
                                      extension_type           = kwargs.get('extension_type','AR_LR'), 
-                                     multi_thread_run         = kwargs.get('multi_thread_run',True), 
+                                     multi_thread_run         = kwargs.get('multi_thread_run',False), 
                                      generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False), 
                                      )
         
@@ -1653,7 +1653,7 @@ class Cissa:
                                       significant_components             = kwargs.get('significant_components',None),
                                       monte_carlo_significant_components = kwargs.get('monte_carlo_significant_components',True),
                                       alpha                              = kwargs.get('alpha',0.05),
-                                      max_breakpoints                    = kwargs.get('max_breakpoints',2),
+                                      max_breakpoints                    = kwargs.get('max_breakpoints',1),
                                       n_boot                             = kwargs.get('n_boot',500),
                                       hurst_window                       = kwargs.get('hurst_window',12),
                                       )

@@ -98,7 +98,7 @@ def create_toeplitz_circulant_matrices(x: np.ndarray,
             if generate_toeplitz_matrix:
                 S[i,j] = gam[k] 
                 S[j,i] = S[i,j]
-            C[i,j] = ((L-k)/L)*gam[k]+(k/L)*gam[L-k] # Pearl (1973)
+            C[i,j] = ((L-k)/L)*gam[k].item()+(k/L)*gam[L-k].item() # Pearl (1973)
             C[j,i] = C[i,j];
     return S,C        
 

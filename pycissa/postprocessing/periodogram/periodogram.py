@@ -248,6 +248,8 @@ def robust_linear_fit(my_freq : list,
 
     # Fit a robust linear model using Huber's T norm
     model = sm.RLM(Y, X, M=sm.robust.norms.HuberT())
+    # model = sm.RLM(Y, X, M=sm.robust.norms.LeastSquares())
+    
     results = model.fit()
 
     # Extract results
@@ -302,11 +304,12 @@ def segmented_regression(my_freq         :  list,
     if max_breakpoints > 1:
         max_breakpoints = 1
         warnings.warn("For now max_breakpoints must be 0 or 1. This may change in the future. Resetting value to 1,")
-        
+    warnings.filterwarnings('ignore') #suppressing warnings here as they are driving me crazy...    
     ms = piecewise_regression.ModelSelection(np.log10(my_freq), 
                                              np.log10(my_psd), 
                                              max_breakpoints=max_breakpoints,n_boot=n_boot,
                                              verbose=False)
+    warnings.filterwarnings('default')
     
     model_summaries = [x for x in ms.model_summaries if x['converged'] == True and x['n_breakpoints'] == 1]
     models = [x for x in ms.models if x.best_muggeo and x.n_breakpoints == 1]
@@ -506,8 +509,8 @@ def calculate_hurst_exponent(x_trend     : np.ndarray,
 
     '''
 
-    all_hurst = nolds.hurst_rs(x_trend+x_detrended, **kwargs)
-    detrended_hurst = nolds.hurst_rs(x_detrended, **kwargs)
+    all_hurst = nolds.hurst_rs(x_trend+x_detrended,fit = 'poly', **kwargs)
+    detrended_hurst = nolds.hurst_rs(x_detrended,fit = 'poly', **kwargs)
     return all_hurst,detrended_hurst
 
 def calculate_rolling_hurst_exponent(x_trend: np.ndarray,
@@ -547,10 +550,10 @@ def calculate_rolling_hurst_exponent(x_trend: np.ndarray,
     # Compute Hurst exponent for each window
     for i in range(n - window + 1):
         window_series = combined_series[i:i + window]
-        rolling_hurst[i] = nolds.hurst_rs(window_series, **kwargs)
+        rolling_hurst[i] = nolds.hurst_rs(window_series,fit = 'poly', **kwargs)
         
         window_series = x_detrended[i:i + window]
-        rolling_hurst_detrended[i] = nolds.hurst_rs(window_series, **kwargs)
+        rolling_hurst_detrended[i] = nolds.hurst_rs(window_series,fit = 'poly', **kwargs)
     
     return rolling_hurst,rolling_hurst_detrended
 ###############################################################################
@@ -562,7 +565,7 @@ def generate_peridogram_plots(
                             frequencies            : dict,
                             significant_components : list|None = None,
                             alpha                  : float = 0.05,
-                            max_breakpoints        : int = 2,
+                            max_breakpoints        : int = 1,
                             n_boot                 : int = 500,
                             hurst_window                 : int = 12,
                             **kwargs):
@@ -586,7 +589,7 @@ def generate_peridogram_plots(
     alpha : float, optional
         DESCRIPTION. The default is 0.05. Significance level for statistical tests.
     max_breakpoints : int, optional
-        DESCRIPTION. The default is 2. Max number of breakpoints for the segmented linear fit. Currently will always be reset to 1 if >1.
+        DESCRIPTION. The default is 1. Max number of breakpoints for the segmented linear fit. Currently will always be reset to 1 if >1.
     n_boot : int, optional
         DESCRIPTION. The default is 500. Number of bootstrap iterations for the segmented linear fit.
     hurst_window : int, optional
