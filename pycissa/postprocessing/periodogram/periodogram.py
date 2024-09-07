@@ -653,9 +653,14 @@ def generate_peridogram_plots(
             }
         
         #make robust segmented regression
-        robust_segmented_results = robust_segmented_fit(my_freq,my_psd,segmented_slopes.get('breakpoint'),alpha)
-        #plot robust segmented results
-        fig_robust_segmented = plot_robust_segmented_linear_fit(my_freq,my_psd, alpha,robust_segmented_results,**kwargs)
+        if segmented_slopes.get('breakpoint'):
+            robust_segmented_results = robust_segmented_fit(my_freq,my_psd,segmented_slopes.get('breakpoint'),alpha)
+            #plot robust segmented results
+            fig_robust_segmented = plot_robust_segmented_linear_fit(my_freq,my_psd, alpha,robust_segmented_results,**kwargs)
+        else:
+            segmented_slopes = {}
+            robust_segmented_results = {}
+            fig_robust_segmented = None
         
     else: 
         segmented_slopes = {}

@@ -956,9 +956,10 @@ def prepare_for_coloured_surrogates(data:     np.ndarray,
     from pycissa.postprocessing.periodogram.periodogram import generate_peridogram_plots
     _, _, _, _, _, robust_linear_slopes,_,_,_,_,_,_,robust_segmented_results  =generate_peridogram_plots(x_trend,x_detrended,psd,frequencies,significant_components=components_to_remove,alpha=alpha)
     alpha_slope = robust_linear_slopes.get('slope')
-    f_breakpoint  = robust_segmented_results.get('breakpoint')
-    alpha_1_slope = robust_segmented_results.get('slope_less_than_breakpoint').get('slope')
-    alpha_2_slope = robust_segmented_results.get('slope_greater_than_breakpoint').get('slope')
+    
+    f_breakpoint  = robust_segmented_results.get('breakpoint',None)
+    alpha_1_slope = robust_segmented_results.get('slope_less_than_breakpoint',{}).get('slope',None)
+    alpha_2_slope = robust_segmented_results.get('slope_greater_than_breakpoint',{}).get('slope',None)
     return alpha_slope,f_breakpoint,alpha_1_slope,alpha_2_slope
 
 

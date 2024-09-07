@@ -1670,12 +1670,10 @@ class Cissa:
     '''  
     check figure sizes
     function commenting!
-    fractal noise surrogates (pyleoclim)
-    predict method (TO DO, maybe using MAPIE?)
-    install sklearn, Mapie
+    predict method (TO DO, maybe using MAPIE? sktime? autots?)
     add option to center data (HARD)
     
-    if plt.get_fignums(): plt.close('all')
+    Calculate gamma distribution travel time distribution  Kirchner, J. W., & Neal, C. (2013). Universal fractal scaling in stream chemistry and its implications for solute transport and water quality trend detection. Proceedings of the National Academy of Sciences, 110(30), 12213-12218.
     
     '''    
           
