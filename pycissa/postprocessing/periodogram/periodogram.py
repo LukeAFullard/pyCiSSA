@@ -35,6 +35,9 @@ def make_periodogram_arrays(psd                    : np.array,
     psd = psd.reshape(len(psd),)
     reverse_dictionary  = {value[0]: key for key, value in frequencies.items()}
     reverse_dictionary = dict(sorted(reverse_dictionary.items()))
+    
+    removed_psd  = []
+    removed_freq = []
     my_psd  = []
     my_freq = []
     for key_j in reverse_dictionary.keys():
@@ -42,13 +45,17 @@ def make_periodogram_arrays(psd                    : np.array,
             if not reverse_dictionary.get(key_j) == 'trend':
                 my_psd.append(psd[key_j])
                 my_freq.append(reverse_dictionary.get(key_j))
-    return my_freq,my_psd    
+        else:  
+            if not reverse_dictionary.get(key_j) == 'trend':
+                removed_psd.append(psd[key_j])
+                removed_freq.append(reverse_dictionary.get(key_j))
+    return my_freq,my_psd,removed_psd,removed_freq    
 
 ###############################################################################
 ###############################################################################
 def linear_fit(my_freq : list,
                my_psd  : list,
-               alpha   : float=0.05) -> dict:
+               alpha   : float=0.05,) -> dict:
     '''
     Function to perform OLS fitting to the log10(psd) vs log10(frequency).
 
@@ -60,7 +67,6 @@ def linear_fit(my_freq : list,
         DESCRIPTION. List of psd.
     alpha : float, optional
         DESCRIPTION. The default is 0.05. Significance level for calculating confidence interval (CI = 100*(1-alpha)).
-
     Returns
     -------
     ols_result : dict
@@ -72,6 +78,7 @@ def linear_fit(my_freq : list,
     Z = sm.add_constant(Z, has_constant='add')
     # Basic OLS fit
     results = sm.OLS(endog=np.array(np.log10(my_psd)), exog=Z).fit()
+    
     ols_result = {
         'constant'  :  {
                         'result'              : results.params[0],
@@ -79,7 +86,7 @@ def linear_fit(my_freq : list,
                         },
         'slope'     :  {'result'              : results.params[1],
                         'confidence_interval' : results.conf_int(alpha=alpha)[1],
-                        }
+                        },
         }
     return ols_result
 ###############################################################################
@@ -87,7 +94,7 @@ def linear_fit(my_freq : list,
 def robust_segmented_fit(my_freq         : list,
                          my_psd          : list,
                          break_point     : float,
-                         alpha           : float=0.05) -> dict:
+                         alpha           : float=0.05,) -> dict:
     '''
     Function to reanalyse the segmented result but using robust regression.
     Takes the break_point from standard segmented regression then uses robust regression on the left and then right sides of this point.
@@ -131,6 +138,7 @@ def robust_segmented_fit(my_freq         : list,
         'slope_greater_than_breakpoint' : {'constant'             : upper_result.get('constant').get('result'),
                                            'slope'                : upper_result.get('slope').get('result'),
                                            'confidence_interval'  : upper_result.get('slope').get('confidence_interval')},
+        
         }
     return robust_segmented_result
 ###############################################################################
@@ -138,6 +146,8 @@ def robust_segmented_fit(my_freq         : list,
 def plot_robust_segmented_linear_fit(my_freq                  : list,
                                     my_psd                    : list,
                                     alpha                     : float,
+                                    removed_psd               : list,
+                                    removed_freq              : list,
                                     robust_segmented_result   : dict,
                                     legend_label              : str = 'Robust segmented fit', 
                                     title                     : str = 'Periodogram - robust segmented fit',
@@ -172,6 +182,7 @@ def plot_robust_segmented_linear_fit(my_freq                  : list,
         
         #scatter data
         ax.scatter(np.log10(my_freq), np.log10(my_psd),color='k',label='data', **kwargs)
+        ax.scatter(np.log10(removed_freq), np.log10(removed_psd),color='orange',label='removed frequencies', **kwargs)
         
         #plot break point
         ax.axvline(np.log10(robust_segmented_result.get('breakpoint')), **kwargs)
@@ -220,7 +231,8 @@ def plot_robust_segmented_linear_fit(my_freq                  : list,
 ###############################################################################
 def robust_linear_fit(my_freq : list,
                       my_psd  : list,
-                      alpha   : float=0.05) -> dict:
+                      alpha   : float=0.05,
+                      ) -> dict:
     '''
     Function to perform ROBUST linear fitting to the log10(psd) vs log10(frequency).
 
@@ -232,7 +244,6 @@ def robust_linear_fit(my_freq : list,
         DESCRIPTION. List of psd.
     alpha : float, optional
         DESCRIPTION. The default is 0.05. Significance level for calculating confidence interval (CI = 100*(1-alpha)).
-
     Returns
     -------
     robust_result : dict
@@ -248,6 +259,8 @@ def robust_linear_fit(my_freq : list,
 
     # Fit a robust linear model using Huber's T norm
     model = sm.RLM(Y, X, M=sm.robust.norms.HuberT())
+    # model = sm.RLM(Y, X, M=sm.robust.norms.MQuantileNorm(0.5,sm.robust.norms.LeastSquares()))
+    # model = sm.RLM(Y, X, M=sm.robust.norms.MQuantileNorm(0.5,sm.robust.norms.HuberT()))
     # model = sm.RLM(Y, X, M=sm.robust.norms.LeastSquares())
     
     results = model.fit()
@@ -261,7 +274,8 @@ def robust_linear_fit(my_freq : list,
         'slope': {
             'result': results.params[1],
             'confidence_interval': results.conf_int(alpha=alpha)[1],
-        }
+        },
+        
     }
 
     return robust_result
@@ -319,6 +333,8 @@ def plot_linear_fit(my_freq      : list,
                     my_psd       : list,
                     alpha        : float,
                     ols_result   : dict,
+                    removed_psd  : list,
+                    removed_freq : list,
                     legend_label : str = 'linear fit', 
                     title        : str = 'Periodogram - linear fit',
                     **kwargs):
@@ -352,6 +368,7 @@ def plot_linear_fit(my_freq      : list,
     
     #scatter data
     ax.scatter(np.log10(my_freq), np.log10(my_psd),color='k',label='data', **kwargs)
+    ax.scatter(np.log10(removed_freq), np.log10(removed_psd),color='orange',label='removed frequencies', **kwargs)
     
     #add line:
     xx_plot = np.linspace(min(np.log10(my_freq)), max(np.log10(my_freq)), 100)
@@ -383,6 +400,8 @@ def plot_linear_fit(my_freq      : list,
 def plot_segmented_fit(my_freq         : list,
                        my_psd          : list,
                        alpha           : float,
+                       removed_psd     : list,
+                       removed_freq    : list,
                        model_summaries : list,
                        models          : list,
                        **kwargs):
@@ -416,6 +435,7 @@ def plot_segmented_fit(my_freq         : list,
         if model_summary_j.get('n_breakpoints') == 1:
             #scatter data
             ax.scatter(np.log10(my_freq), np.log10(my_psd),color='k',label='data', **kwargs)
+            ax.scatter(np.log10(removed_freq), np.log10(removed_psd),color='orange',label='removed frequencies', **kwargs)
 
             #plot lines
             for model_k in models:
@@ -565,7 +585,7 @@ def generate_peridogram_plots(
                             alpha                  : float = 0.05,
                             max_breakpoints        : int = 1,
                             n_boot                 : int = 500,
-                            hurst_window                 : int = 12,
+                            hurst_window           : int = 12,
                             **kwargs):
     '''
     Function to run a periodogram analysis to find the fractal scaling of the time series.
@@ -622,23 +642,23 @@ def generate_peridogram_plots(
 
     '''
     #get psd and frequencies of interest
-    my_freq,my_psd   = make_periodogram_arrays(psd, frequencies,significant_components=significant_components)
+    my_freq,my_psd,removed_psd,removed_freq = make_periodogram_arrays(psd, frequencies,significant_components=significant_components)
     
     #make linear plot.
     ols_result = linear_fit(my_freq,my_psd,alpha=alpha)
-    fig_linear = plot_linear_fit(my_freq,my_psd,alpha,ols_result,**kwargs)
+    fig_linear = plot_linear_fit(my_freq,my_psd,alpha,ols_result,removed_psd,removed_freq,**kwargs)
     linear_slopes = { 'slope' : ols_result['slope']['result'],
      'confidence_interval' : ols_result['slope']['confidence_interval']}
     
     #make robust linear plot
     robust_ols_result = robust_linear_fit(my_freq, my_psd, alpha=alpha)
-    fig_robust_linear = plot_linear_fit(my_freq,my_psd,alpha,robust_ols_result,legend_label = 'robust linear fit', title = 'Periodogram - robust linear fit')
+    fig_robust_linear = plot_linear_fit(my_freq,my_psd,alpha,robust_ols_result,removed_psd,removed_freq,legend_label = 'robust linear fit', title = 'Periodogram - robust linear fit')
     robust_linear_slopes = { 'slope' : robust_ols_result['slope']['result'],
      'confidence_interval' : robust_ols_result['slope']['confidence_interval']}
     
     #make segmented linear plot
     model_summaries,models = segmented_regression(my_freq,my_psd,max_breakpoints=max_breakpoints,n_boot=n_boot)
-    fig_segmented = plot_segmented_fit(my_freq,my_psd,alpha,model_summaries,models,**kwargs)
+    fig_segmented = plot_segmented_fit(my_freq,my_psd,alpha,removed_psd,removed_freq,model_summaries,models,**kwargs)
     if len(model_summaries) > 0:
         segmented_slopes = {
             'breakpoint' : np.power(10, model_summaries[0]['estimates']['breakpoint1']['estimate']),
@@ -656,7 +676,7 @@ def generate_peridogram_plots(
         if segmented_slopes.get('breakpoint'):
             robust_segmented_results = robust_segmented_fit(my_freq,my_psd,segmented_slopes.get('breakpoint'),alpha)
             #plot robust segmented results
-            fig_robust_segmented = plot_robust_segmented_linear_fit(my_freq,my_psd, alpha,robust_segmented_results,**kwargs)
+            fig_robust_segmented = plot_robust_segmented_linear_fit(my_freq,my_psd, alpha,removed_psd,removed_freq,robust_segmented_results,**kwargs)
         else:
             segmented_slopes = {}
             robust_segmented_results = {}
