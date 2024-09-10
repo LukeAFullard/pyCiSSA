@@ -250,7 +250,8 @@ def _fix_missing_date_samples(t: np.ndarray,
         DESCRIPTION: array of corrected data values (i.e. missing values are added)
     x_missing : np.ndarray
         DESCRIPTION: array of values indicating whether a value is added or not. If not, None, if so, the value will be True.
-
+    t_centered : np.ndarray
+        DESCRIPTION: array of centered time values. t_centered does not correspond to the t values of final_x, but is an approximation of final_t to help with prediction on a regular time grid. 
     '''
     # import datetime
     from dateutil.relativedelta import relativedelta
@@ -310,6 +311,7 @@ def _fix_missing_date_samples(t: np.ndarray,
     # mydate = mydate.replace(day=mydate.day+1)
     
     all_dates = []
+    centered_dates = []
     all_x = []
     x_missing = []
     current_date = min_date
@@ -320,6 +322,7 @@ def _fix_missing_date_samples(t: np.ndarray,
         if (time_i >= lower_date) & (time_i <= upper_date):
             # Here date is within the acceptable range
             all_dates.append(time_i)
+            centered_dates.append(current_date)
             all_x.append(x_i)
             x_missing.append(None)
             current_date = add_date_delta(current_date,years,months,days,hours,minutes,seconds,'add')
@@ -327,6 +330,7 @@ def _fix_missing_date_samples(t: np.ndarray,
             stop_date = add_date_delta(time_i,year_delta,month_delta,day_delta,hour_delta,minute_delta,second_delta,'add')
             while current_date <= stop_date:
                 all_dates.append(current_date)
+                centered_dates.append(current_date)
                 if (time_i >= lower_date) & (time_i <= upper_date):
                     all_x.append(x_i)
                     x_missing.append(None)
@@ -337,11 +341,12 @@ def _fix_missing_date_samples(t: np.ndarray,
                 lower_date = add_date_delta(current_date,year_delta,month_delta,day_delta,hour_delta,minute_delta,second_delta,'subtract')
                 upper_date = add_date_delta(current_date,year_delta,month_delta,day_delta,hour_delta,minute_delta,second_delta,'add')
                 
-    final_t    =  np.array(all_dates, dtype=object)    
+    final_t    =  np.array(all_dates, dtype=object)  
+    t_centered =  np.array(centered_dates, dtype=object)  
     final_x    =  np.array(all_x,     dtype=np.float64)  
     x_missing  =  np.array(x_missing, dtype=np.float64)    
           
-    return final_t, final_x, x_missing
+    return final_t, final_x, x_missing,t_centered
 
 
 def _fix_missing_numeric_samples(t: np.ndarray, 
@@ -377,6 +382,8 @@ def _fix_missing_numeric_samples(t: np.ndarray,
         DESCRIPTION: array of corrected data values (i.e. missing values are added)
     x_missing : np.ndarray
         DESCRIPTION: array of values indicating whether a value is added or not. If not, None, if so, the value will be True.
+    t_centered : np.ndarray
+        DESCRIPTION: array of centered time values. t_centered does not correspond to the t values of final_x, but is an approximation of final_t to help with prediction on a regular time grid. 
 
     '''
     # import datetime
@@ -402,6 +409,7 @@ def _fix_missing_numeric_samples(t: np.ndarray,
     # mydate = mydate.replace(day=mydate.day+1)
     
     all_t = []
+    t_centered = []
     all_x = []
     x_missing = []
     current_t = min_t
@@ -412,6 +420,7 @@ def _fix_missing_numeric_samples(t: np.ndarray,
         if (time_i >= lower_t) & (time_i <= upper_t):
             # Here date is within the acceptable range
             all_t.append(time_i)
+            t_centered.append(current_t)
             all_x.append(x_i)
             x_missing.append(None)
             current_t = add_date_delta(current_t,t_step,'add')
@@ -419,6 +428,7 @@ def _fix_missing_numeric_samples(t: np.ndarray,
             stop_t = add_date_delta(time_i,wiggleroom,'add')
             while current_t <= stop_t:
                 all_t.append(current_t)
+                t_centered.append(current_t)
                 if (time_i >= lower_t) & (time_i <= upper_t):
                     all_x.append(x_i)
                     x_missing.append(None)
@@ -429,9 +439,10 @@ def _fix_missing_numeric_samples(t: np.ndarray,
                 lower_t = add_date_delta(current_t,wiggleroom,'subtract')
                 upper_t = add_date_delta(current_t,wiggleroom,'add')
                 
-    final_t    =  np.array(all_t, dtype=np.float64)    
+    final_t    =  np.array(all_t, dtype=np.float64)   
+    t_centered =  np.array(t_centered, dtype=np.float64)  
     final_x    =  np.array(all_x,     dtype=np.float64)  
     x_missing  =  np.array(x_missing, dtype=np.float64)    
           
-    return final_t, final_x, x_missing
+    return final_t, final_x, x_missing, t_centered
     

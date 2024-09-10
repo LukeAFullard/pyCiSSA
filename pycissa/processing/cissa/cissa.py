@@ -563,7 +563,7 @@ class Cissa:
             #1) check that the needed settings are present
             if not (date_settings.get('years',0)+date_settings.get('months',0)+date_settings.get('days',0)+date_settings.get('hours',0)+date_settings.get('minutes',0)+date_settings.get('seconds',0)) > 0: raise ValueError(f"At least one date step must be provided and greater than zero. Please check the 'years', 'months', 'days', 'hours', 'minutes', and 'seconds' in date_settings (Note, some of these may be excluded or zero, but at least one should be provided and >0 )") 
             from pycissa.preprocessing.data_cleaning.data_cleaning import _fix_missing_date_samples 
-            self.t,self.x,self.added_times = _fix_missing_date_samples(
+            self.t,self.x,self.added_times, self.t_centered = _fix_missing_date_samples(
                                      self.t,
                                      self.x,
                                      start_date,
@@ -584,7 +584,7 @@ class Cissa:
             
         elif version == 'numeric':
             from pycissa.preprocessing.data_cleaning.data_cleaning import _fix_missing_numeric_samples 
-            self.t,self.x,self.added_times = _fix_missing_numeric_samples(
+            self.t,self.x,self.added_times,self.t_centered = _fix_missing_numeric_samples(
                                         self.t, 
                                         self.x,
                                        t_step         = numeric_time_settings.get('t_step',1), 
@@ -1672,6 +1672,7 @@ class Cissa:
     function commenting!
     predict method (TO DO, maybe using MAPIE? sktime? autots?)
     add option to center data (HARD)
+    add Lomb Scargle
     
     '''    
           
