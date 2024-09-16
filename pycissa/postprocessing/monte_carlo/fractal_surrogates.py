@@ -953,8 +953,9 @@ def prepare_for_coloured_surrogates(data:     np.ndarray,
                 components_to_remove += temp_result['components'][key_j]['array_position']
     
     #4) estimate periodgram slope/s 
-    from pycissa.postprocessing.periodogram.periodogram import generate_peridogram_plots
-    _, _, _, _, _, robust_linear_slopes,_,_,_,_,_,_,robust_segmented_results  =generate_peridogram_plots(x_trend,x_detrended,psd,frequencies,significant_components=components_to_remove,alpha=alpha)
+    from pycissa.postprocessing.periodogram.periodogram import generate_peridogram_result_only
+    # _, _, _, _, _, robust_linear_slopes,_,_,_,_,_,_,robust_segmented_results  = generate_peridogram_plots(x_trend,x_detrended,psd,frequencies,significant_components=components_to_remove,alpha=alpha)
+    robust_linear_slopes,robust_segmented_results   = generate_peridogram_result_only(psd,frequencies,significant_components=components_to_remove,alpha=alpha)
     alpha_slope = robust_linear_slopes.get('slope')
     
     f_breakpoint  = robust_segmented_results.get('breakpoint',None)

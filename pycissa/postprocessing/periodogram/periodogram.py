@@ -53,6 +53,56 @@ def make_periodogram_arrays(psd                    : np.array,
 
 ###############################################################################
 ###############################################################################
+def lomb_scargle_astropy(x             : np.ndarray,
+                         my_freq       : list,
+                         normalization : str  = 'standard',
+                         center_data   : bool = True,
+                         fit_mean      : bool = True,
+                         nterms        : int  = 1):
+    '''
+    Function to fit a Lomb-Scargle (normalised by default) periodogram. Note frequencies are cycles per unit time.
+    By default we fit the periodogram to the same frequencies as CiSSA for an easy comparison.
+    See https://astropy-cjhang.readthedocs.io/en/latest/stats/lombscargle.html.
+    
+    Price-Whelan, A. M., Lim, P. L., Earl, N., Starkman, N., Bradley, L., Shupe, D. L., ... & Astropy Collaboration. (2022). The astropy project: sustaining and growing a community-oriented open-source project and the latest major release (v5. 0) of the core package. The Astrophysical Journal, 935(2), 167.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        DESCRIPTION. Input data array.
+    my_freq : list
+        DESCRIPTION. Frequencies to fit the periodogram.
+    normalization : str, optional
+        DESCRIPTION. The default is 'standard'. How to normalise the periodogram. See https://astropy-cjhang.readthedocs.io/en/latest/stats/lombscargle.html.
+    center_data : bool, optional
+        DESCRIPTION. The default is True. Center data? See https://astropy-cjhang.readthedocs.io/en/latest/stats/lombscargle.html.
+    fit_mean : bool, optional
+        DESCRIPTION. The default is True. Fit mean? See https://astropy-cjhang.readthedocs.io/en/latest/stats/lombscargle.html.
+    nterms : int, optional
+        DESCRIPTION. The default is 1. Number of terms in the periodogram.
+
+    Returns
+    -------
+    power : TYPE
+        DESCRIPTION. Lomb-Scargle power.
+
+    '''
+    try:
+        from astropy.timeseries import LombScargle
+    except ImportError:
+        from astropy.stats import LombScargle
+    #NOTE: In astropy, all frequencies in LombScargle are not angular frequencies, but rather frequencies of oscillation; i.e. number of cycles per unit time.
+    power = LombScargle(np.linspace(1,len(x),len(x)), 
+                        x,
+                        normalization=normalization,
+                        center_data=center_data,
+                        fit_mean=fit_mean,
+                        nterms=nterms,
+                        ).power(my_freq)
+    return power
+
+
+#
 def linear_fit(my_freq : list,
                my_psd  : list,
                alpha   : float=0.05,) -> dict:
@@ -701,13 +751,159 @@ def generate_peridogram_plots(
     return fig_linear, fig_segmented, fig_robust_linear, linear_slopes, segmented_slopes, robust_linear_slopes,all_hurst,detrended_hurst, fig_rolling_hurst,rolling_hurst,rolling_hurst_detrended , fig_robust_segmented,robust_segmented_results
     
     
-         
+def generate_peridogram_result_only(
+                            psd                    : np.array,
+                            frequencies            : dict,
+                            significant_components : list|None = None,
+                            alpha                  : float = 0.05,
+                            max_breakpoints        : int = 1,
+                            n_boot                 : int = 500,
+                            **kwargs):
+    '''
+    Function to run a periodogram analysis to find the fractal scaling of the time series.
+    In all cases the trend is not considered, and significant periodic components can be ignored too using the input parameters.
+    A scaled back version of generate_peridogram_plots.
+
+    Parameters
+    ----------
+    psd : np.array
+        DESCRIPTION. Power specrtal density from the CiSSA fit.
+    frequencies : dict
+        DESCRIPTION. Frequencies from the Cissa fit.
+    significant_components : list|None, optional
+        DESCRIPTION. The default is None. The default is None. A list of significant components which will not be considered in the periodogram analysis. Can also be None, in which case all components (except the trend) will be used for the periodogram, or if significant_components = None and monte_carlo_significant_components = True, then the monte carlo significant components will be removed.
+    alpha : float, optional
+        DESCRIPTION. The default is 0.05. Significance level for statistical tests.
+    max_breakpoints : int, optional
+        DESCRIPTION. The default is 1. Max number of breakpoints for the segmented linear fit. Currently will always be reset to 1 if >1.
+    n_boot : int, optional
+        DESCRIPTION. The default is 500. Number of bootstrap iterations for the segmented linear fit.
+    **kwargs : TYPE
+        DESCRIPTION. keyword arguments for segmented fitting.
+
+    Returns
+    -------
+    linear_slopes : dict
+        DESCRIPTION. Dictionary of results from linear fitting.
+    robust_linear_slopes : dict
+        DESCRIPTION. Dictionary of results from robust linear fitting.
+    '''
+    #get psd and frequencies of interest
+    my_freq,my_psd,removed_psd,removed_freq = make_periodogram_arrays(psd, frequencies,significant_components=significant_components)
+    
+    #make robust linear plot
+    robust_ols_result = robust_linear_fit(my_freq, my_psd, alpha=alpha)
+    robust_linear_slopes = { 'slope' : robust_ols_result['slope']['result'],
+     'confidence_interval' : robust_ols_result['slope']['confidence_interval']}
+    
+    #make segmented linear plot
+    model_summaries,models = segmented_regression(my_freq,my_psd,max_breakpoints=max_breakpoints,n_boot=n_boot)
+    if len(model_summaries) > 0:
+        segmented_slopes = {
+            'breakpoint' : np.power(10, model_summaries[0]['estimates']['breakpoint1']['estimate']),
+            'slope_less_than_breakpoint' : {
+                                        'slope'               : model_summaries[0]['estimates']['alpha1']['estimate'],
+                                        'confidence_interval' : model_summaries[0]['estimates']['alpha1']['confidence_interval'],
+                                        },
+            'slope_greater_than_breakpoint' : {
+                                        'slope'               : model_summaries[0]['estimates']['alpha2']['estimate'],
+                                        'confidence_interval' : model_summaries[0]['estimates']['alpha2']['confidence_interval'],
+                                        }
+            }
+        
+        #make robust segmented regression
+        if segmented_slopes.get('breakpoint'):
+            robust_segmented_results = robust_segmented_fit(my_freq,my_psd,segmented_slopes.get('breakpoint'),alpha)
+        else:
+            segmented_slopes = {}
+            robust_segmented_results = {}
+          
+        
+    else: 
+        segmented_slopes = {}
+        robust_segmented_results = {}
+    
+    
+    return robust_linear_slopes,robust_segmented_results         
 
 
 
 ###############################################################################
 ###############################################################################
-     
+def generate_lomb_scargle_peridogram_plots(
+                            x_detrended            : np.ndarray,
+                            psd                    : np.array,
+                            frequencies            : dict,
+                            significant_components : list|None = None,
+                            alpha                  : float = 0.05,
+                            max_breakpoints        : int = 1,
+                            n_boot                 : int = 500,
+                            normalization          : str = 'standard',
+                            center_data            : bool = True,
+                            fit_mean               : bool = True,
+                            nterms                 : int = 1,
+                            **kwargs):
+    
+    my_freq,my_psd,removed_psd,removed_freq = make_periodogram_arrays(psd, frequencies,significant_components=significant_components)
+    
+    
+    ls_power = lomb_scargle_astropy(x_detrended,sorted(my_freq+removed_freq),
+                              normalization=normalization,
+                              center_data=center_data,
+                              fit_mean=fit_mean,
+                              nterms=nterms)
+
+    
+    ls_power_ = [x for x,y in zip(ls_power,sorted(my_freq+removed_freq)) if y not in removed_freq]
+    
+    #make linear plot.
+    ols_result = linear_fit(my_freq,ls_power_,alpha=alpha)
+    fig_linear = plot_linear_fit(my_freq,ls_power_,alpha,ols_result,removed_psd,removed_freq,**kwargs)
+    linear_slopes = { 'slope' : ols_result['slope']['result'],
+     'confidence_interval' : ols_result['slope']['confidence_interval']}
+    
+    #make robust linear plot
+    robust_ols_result = robust_linear_fit(my_freq, ls_power_, alpha=alpha)
+    fig_robust_linear = plot_linear_fit(my_freq,ls_power_,alpha,robust_ols_result,removed_psd,removed_freq,legend_label = 'robust linear fit', title = 'Periodogram - robust linear fit')
+    robust_linear_slopes = { 'slope' : robust_ols_result['slope']['result'],
+     'confidence_interval' : robust_ols_result['slope']['confidence_interval']}
+    
+    #make segmented linear plot
+    model_summaries,models = segmented_regression(my_freq,ls_power_,max_breakpoints=max_breakpoints,n_boot=n_boot)
+    fig_segmented = plot_segmented_fit(my_freq,ls_power_,alpha,removed_psd,removed_freq,model_summaries,models,**kwargs)
+    if len(model_summaries) > 0:
+        segmented_slopes = {
+            'breakpoint' : np.power(10, model_summaries[0]['estimates']['breakpoint1']['estimate']),
+            'slope_less_than_breakpoint' : {
+                                        'slope'               : model_summaries[0]['estimates']['alpha1']['estimate'],
+                                        'confidence_interval' : model_summaries[0]['estimates']['alpha1']['confidence_interval'],
+                                        },
+            'slope_greater_than_breakpoint' : {
+                                        'slope'               : model_summaries[0]['estimates']['alpha2']['estimate'],
+                                        'confidence_interval' : model_summaries[0]['estimates']['alpha2']['confidence_interval'],
+                                        }
+            }
+        
+        #make robust segmented regression
+        if segmented_slopes.get('breakpoint'):
+            robust_segmented_results = robust_segmented_fit(my_freq,ls_power_,segmented_slopes.get('breakpoint'),alpha)
+            #plot robust segmented results
+            fig_robust_segmented = plot_robust_segmented_linear_fit(my_freq,ls_power_, alpha,removed_psd,removed_freq,robust_segmented_results,**kwargs)
+        else:
+            segmented_slopes = {}
+            robust_segmented_results = {}
+            fig_robust_segmented = None
+        
+    else: 
+        segmented_slopes = {}
+        robust_segmented_results = {}
+        fig_robust_segmented = None
+        
+            
+    
+    
+    return fig_linear, fig_segmented, fig_robust_linear, linear_slopes, segmented_slopes, robust_linear_slopes, fig_robust_segmented,robust_segmented_results,ls_power
+    
 
 
 
