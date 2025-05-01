@@ -188,7 +188,7 @@ def plot_frequency_time(t:       np.ndarray,
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
     
-    plt.style.use('_mpl-gallery-nogrid')
+    plt.style.use('ggplot')  # or 'seaborn', 'bmh', 'classic', etc.
     X, Y = np.meshgrid(t, f)
     Z = z
     
@@ -251,7 +251,7 @@ def plot_period_time(t:           np.ndarray,
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
     
-    plt.style.use('_mpl-gallery-nogrid')
+    plt.style.use('ggplot')  # or 'seaborn', 'bmh', 'classic', etc.
     X, Y = np.meshgrid(t, periods)
     Z = z
     

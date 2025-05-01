@@ -1,5 +1,6 @@
 import numpy as np
-
+from multiprocessing.dummy import Pool as ThreadPool
+from scipy.linalg import toeplitz
 
 ###############################################################################
 ###############################################################################
@@ -56,6 +57,39 @@ def create_autocovariance_function(x: np.ndarray,
     for k in range(0,L):
         gam[k] = np.matmul((x[0:T-k]-np.mean(x)).transpose(),(x[k:T+1]-np.mean(x))/(T-k))
     return gam    
+
+def create_vector_autocovariance_function(x: np.ndarray,
+                                   L: int,
+                                   T: int) -> np.ndarray:
+    """
+    Vectorised autocovariance function (see https://arxiv.org/pdf/2102.01742).
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Input numpy array (shape (T,) or (T,1))
+    L : int
+        CiSSA window length.
+    T : int
+        Length of your input array x.
+
+    Returns
+    -------
+    gam : np.ndarray
+        Autocovariance function, shape (L,1)
+    """
+    # ensure 1D
+    x = x.flatten()
+    # subtract mean once
+    x_centered = x - x.mean()
+    # full autocorrelation (lags from -(T-1) to +(T-1))
+    acov_full = np.correlate(x_centered, x_centered, mode='full')
+    # extract lags 0 through L-1 (positions T-1 to T-1+L-1)
+    acov = acov_full[T-1 : T-1 + L]
+    # normalise by (T - k) for each lag k
+    denom = np.arange(T, T - L, -1)
+    gam = (acov / denom).reshape(L, 1)
+    return gam
 ###############################################################################
 ###############################################################################
 def create_toeplitz_circulant_matrices(x: np.ndarray,
@@ -88,7 +122,8 @@ def create_toeplitz_circulant_matrices(x: np.ndarray,
     '''
     
     S = None
-    gam = create_autocovariance_function(x,L,T)
+    # gam = create_autocovariance_function(x,L,T)
+    gam = create_vector_autocovariance_function(x,L,T)
     if generate_toeplitz_matrix:
         S = gam[0]*np.eye(L) 
     C = gam[0]*np.eye(L) 
@@ -102,6 +137,35 @@ def create_toeplitz_circulant_matrices(x: np.ndarray,
             C[j,i] = C[i,j];
     return S,C        
 
+def create_vector_toeplitz_circulant_matrices(
+                                            x: np.ndarray,
+                                            L: int,
+                                            T: int,
+                                            generate_toeplitz_matrix: bool = False
+                                        ) -> tuple[np.ndarray|None, np.ndarray]:
+    """
+    Vectorised generation of the CiSSA circulant (C) and, optionally,
+    Toeplitz (S) matrices. Pads gam so gam_pad[L]=0 and you never index out of bounds.
+    """
+    # 1) get the autocovariance vector (L×1) and flatten
+    gam = create_vector_autocovariance_function(x, L, T).flatten()  # shape (L,)
+    # pad with a zero at the end so gam_pad[L] is valid
+    gam_pad = np.concatenate([gam, [0.0]])  # shape (L+1,)
+
+    # 2) build the lag-difference matrix K = |i-j|
+    idx = np.arange(L)
+    K = np.abs(idx[:, None] - idx[None, :])  # shape (L, L)
+
+    # 3) circulant matrix:
+    #    C[i,j] = ((L-k)/L)*gam[k] + (k/L)*gam[L-k]
+    C = ((L - K) / L) * gam_pad[K] + (K / L) * gam_pad[L - K]
+
+    # 4) symmetric Toeplitz matrix (if requested)
+    S = None
+    if generate_toeplitz_matrix:
+        S = toeplitz(gam)  # first column is gam
+
+    return S, C
 ###############################################################################
 ###############################################################################
 def calculate_number_of_frequencies(L: int) -> int:
@@ -226,6 +290,7 @@ def calculate_principal_components(U: np.ndarray,
 ###############################################################################
 def diagonal_average(Y: np.ndarray) -> np.ndarray:
     '''
+    NOTE - as of 2 May 2025 we use diagonal_average_vectorized and the current function is unused. Will be removed in future releases.
     Function to perform diagonal averaging for Singular Spectrum Analysis. https://doi.org/10.1016/j.sigpro.2020.107824
     This function transforms the numpy matrix, Y, into the time series,
     y, by diagonal averaging. This entails averaging the elements of Y over its antidiagonals.
@@ -283,6 +348,7 @@ def diagonal_average_worker(t: int,
                             L: int,
                             T: int) -> np.ndarray:
     '''
+    NOTE - as of 2 May 2025 we use diagonal_average_vectorized and the current function is unused. Will be removed in future releases.
     Calculation function for the multiprocessing version of diagaver.
 
     Parameters
@@ -328,6 +394,7 @@ def diagonal_average_worker(t: int,
 ###############################################################################
 def diagonal_average_single_thread(Y: np.ndarray) -> np.ndarray:
     '''
+    NOTE - as of 2 May 2025 we use diagonal_average_vectorized and the current function is unused. Will be removed in future releases.
     Function to perform diagonal averaging for Singular Spectrum Analysis. https://doi.org/10.1016/j.sigpro.2020.107824
     This function transforms the numpy matrix, Y, into the time series,
     y, by diagonal averaging. This entails averaging the elements of Y over its antidiagonals.
@@ -396,6 +463,59 @@ def diagonal_average_single_thread(Y: np.ndarray) -> np.ndarray:
 
     return y
 
+
+def diagonal_average_vectorized(Y: np.ndarray) -> np.ndarray:
+    '''
+    Function to perform diagonal averaging for Singular Spectrum Analysis using vectorized operations.
+    This function transforms the input 2D numpy array, Y, into a 1D time series, y, by averaging
+    the elements of Y over its antidiagonals.
+
+    -------------------------------------------------------------------------
+    References:
+    [1] Bógalo, J., Poncela, P., & Senra, E. (2021). 
+        "Circulant singular spectrum analysis: a new automated procedure for signal extraction". 
+          Signal Processing, 179, 107824.
+        https://doi.org/10.1016/j.sigpro.2020.107824.
+    -------------------------------------------------------------------------
+    
+    Parameters
+    ----------
+    Y : np.ndarray
+        DESCRIPTION: Input 2D numpy array/matrix
+
+    Returns
+    -------
+    y : np.ndarray
+        DESCRIPTION: Output diagonally averaged 1D array of shape (T, 1)
+    '''
+    # Get initial shape of the matrix
+    LL, NN = Y.shape
+    
+    # Transpose if number of rows exceeds number of columns
+    if LL > NN:
+        Y = Y.T
+    
+    # Get dimensions after possible transposition
+    L, N = Y.shape  # Now L <= N
+    T = N + L - 1
+    
+    # Generate row and column indices
+    row, col = np.indices((L, N))
+    
+    # Compute antidiagonal indices (s = row + col)
+    s = row + col
+    
+    # Compute sum of elements for each antidiagonal
+    sum_s = np.bincount(s.ravel(), weights=Y.ravel())
+    
+    # Compute count of elements for each antidiagonal
+    count_s = np.bincount(s.ravel())
+    
+    # Compute averages
+    y = sum_s / count_s
+    
+    # Return as column vector
+    return y[:, np.newaxis]
 ###############################################################################
 ###############################################################################
 def define_left_and_right_extension_lengths(extension_type: str,
@@ -472,6 +592,14 @@ def perform_reconstruction(U: np.ndarray,
         DESCRIPTION: Reconstructed array
 
     '''
+    
+    import platform
+    if platform.system() in ['Windows','Darwin','Emscripten']:
+        import warnings
+        warnings.warn("WARNING: Sorry, multiprocessing does not work on Windows or OS X yet... switching to single core run")    
+        multi_thread_run = False
+    
+    
     left_ext,right_ext = define_left_and_right_extension_lengths(extension_type,T,L)
     # Elementary reconstructed series
     R = np.zeros((T+(right_ext+left_ext),L))
@@ -483,6 +611,69 @@ def perform_reconstruction(U: np.ndarray,
             
     return R        
 
+def perform_vectorized_reconstruction(U: np.ndarray,
+                           W: np.ndarray,
+                           T: int,
+                           L: int,
+                           extension_type: str,
+                           multi_thread_run: bool = True,
+                           num_workers: int = 2
+                          ) -> np.ndarray:
+    '''
+    Vectorized Function to perform matrix reconstruction (see 4th CiSSA step https://arxiv.org/pdf/2102.01742)
+
+    Parameters
+    ----------
+    U : np.ndarray
+        DESCRIPTION: elementary matrix
+    W : np.ndarray
+        DESCRIPTION: Matrix of principal components
+    T : int
+        DESCRIPTION: Input array length
+    L : int
+        DESCRIPTION: CiSSA window length.
+    extension_type : str
+        DESCRIPTION: extension type for left and right ends of the time series   
+    multi_thread_run : bool, optional
+        DESCRIPTION: Flag to indicate whether the diagonal averaging is performed on multiple cpu cores (True) or not. The default is True.
+    num_workers : int, optional
+        DESCRIPTION: If using multi-threading, how many workers to use.    
+
+    Returns
+    -------
+    R : np.ndarray
+        DESCRIPTION: Reconstructed array
+
+    '''
+
+    left_ext, right_ext = define_left_and_right_extension_lengths(extension_type, T, L)
+    R = np.zeros((T + left_ext + right_ext, L), dtype=U.dtype)
+
+    # local helper: compute the k-th reconstructed series
+    def _compute_k(k: int) -> np.ndarray:
+        Yk = U[:, [k]] @ W[[k], :]
+        return diagonal_average_vectorized(Yk).ravel()
+
+    if multi_thread_run:
+        # ThreadPool uses threads under the hood—no pickling required, works on Windows
+        pool = ThreadPool(num_workers)  # None→defaults to number_of_cores
+        try:
+            # map returns a list of length L: [R0, R1, ..., R_{L-1}]
+            cols = pool.map(_compute_k, range(L))
+        finally:
+            pool.close()
+            pool.join()
+
+        # stitch columns back into R
+        for k, col in enumerate(cols):
+            R[:, k] = col
+            
+    else:
+        # fall back to your original loop
+        for k in range(L):
+            R[:, k] = _compute_k(k)
+
+    return R
 ###############################################################################
 ###############################################################################
 
@@ -596,6 +787,7 @@ def run_cissa(x: np.ndarray,
               L: int,
               extension_type: str = 'AR_LR',
               multi_thread_run: bool = True,
+              num_workers: int = 2,
               generate_toeplitz_matrix: bool = False
               ) -> tuple[np.ndarray,np.ndarray]:
     '''
@@ -618,6 +810,8 @@ def run_cissa(x: np.ndarray,
         DESCRIPTION: CiSSA window length.
     multi_thread_run : bool, optional
         DESCRIPTION: Flag to indicate whether the diagonal averaging is performed on multiple cpu cores (True) or not. The default is True.. The default is True.
+    num_workers : int, optional
+        DESCRIPTION: If using multi-threading, how many workers to use.    
     generate_toeplitz_matrix : bool, optional
         DESCRIPTION: Flag to indicate whether we need to calculate the symmetric Toeplitz matrix or not. The default is False. The default is False.
 
@@ -629,13 +823,7 @@ def run_cissa(x: np.ndarray,
         DESCRIPTION: estimation of the the circulant matrix power spectral density
 
     '''
-    import platform
-    if platform.system() in ['Windows','Darwin','Emscripten']:
-        import warnings
-        warnings.warn("WARNING: Sorry, multiprocessing does not work on Windows or OS X yet... switching to single core run")    
-        multi_thread_run = False
-
-
+    
     #1. run input checks
     x,T,N = cissa_input_checks(x,extension_type,L)
     
@@ -651,7 +839,9 @@ def run_cissa(x: np.ndarray,
     U = calculate_elementary_matrix(L)
     
     #5. calculate circulant matirx
-    S,C = create_toeplitz_circulant_matrices(x,L,T,generate_toeplitz_matrix=generate_toeplitz_matrix,                                           )
+    # S,C = create_toeplitz_circulant_matrices(x,L,T,generate_toeplitz_matrix=generate_toeplitz_matrix,                                           )
+    S,C = create_vector_toeplitz_circulant_matrices(x,L,T,generate_toeplitz_matrix=generate_toeplitz_matrix)
+    
     
     #6. estimate_power_spectral_density 
     psd = estimate_power_spectral_density(U,C)
@@ -663,7 +853,9 @@ def run_cissa(x: np.ndarray,
     del X
     
     #8.  Perform reconstruction
-    R = perform_reconstruction(U,W,T,L,extension_type,multi_thread_run = multi_thread_run)
+    # R = perform_reconstruction(U,W,T,L,extension_type,multi_thread_run = multi_thread_run)
+    R = perform_vectorized_reconstruction(U,W,T,L,extension_type,multi_thread_run = multi_thread_run, num_workers=num_workers)
+    
     del U, W
     
     #9. Group paired frequencies
@@ -733,7 +925,8 @@ def run_cissa_psd_step(x: np.ndarray,
     U = calculate_elementary_matrix(L)
     
     #5. calculate circulant matirx
-    S,C = create_toeplitz_circulant_matrices(x,L,T,generate_toeplitz_matrix=generate_toeplitz_matrix,                                           )
+    # S,C = create_toeplitz_circulant_matrices(x,L,T,generate_toeplitz_matrix=generate_toeplitz_matrix,                                           )
+    S,C = create_vector_toeplitz_circulant_matrices(x,L,T,generate_toeplitz_matrix=generate_toeplitz_matrix)
     
     #6. estimate_power_spectral_density 
     psd = estimate_power_spectral_density(U,C)
