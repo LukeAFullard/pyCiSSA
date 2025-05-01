@@ -1041,6 +1041,10 @@ class Cissa:
                                   max_breakpoints                    : int = 1,
                                   n_boot                             : int = 500,
                                   hurst_window                       : int = 12,
+                                  normalization                      : str = 'standard',
+                                  center_data                        : bool = True,
+                                  fit_mean                           : bool = True,
+                                  nterms                             : int = 1,
                                   **kwargs):
         '''
         Function to run a periodogram analysis to find the fractal scaling of the time series.
@@ -1061,11 +1065,19 @@ class Cissa:
             DESCRIPTION. The default is 500. Number of bootstrap iterations for the segmented linear fit.
         hurst_window : int, optional
             DESCRIPTION. The default is 12. The window length (in number of time steps) for the rolling Hurst calculation.
+        normalization : str, optional
+            DESCRIPTION. The default is 'standard'. How to normalise the lomb-scargle periodogram.
+        center_data :  bool, optional
+            DESCRIPTION. The default is True. Whether to center the data for the lomb-scargle periodogram.
+        fit_mean :  bool, optional
+            DESCRIPTION. The default is True. Whether to fit the mean for the lomb-scargle periodogram.
+        nterms : int, optional
+            DESCRIPTION. The default is 1. Number of terms in the trigonometric fit of the lomb-scargle periodogram.
         **kwargs 
             DESCRIPTION. keyword arguments for fitting.
 
         '''
-        from pycissa.postprocessing.periodogram.periodogram import generate_peridogram_plots
+        from pycissa.postprocessing.periodogram.periodogram import generate_peridogram_plots,generate_lomb_scargle_peridogram_plots
         necessary_attributes = ["psd","frequencies","results"]
         for attr_i in necessary_attributes:
             if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please run the pycissa fit method before running the post_periodogram_analysis method.")
@@ -1104,6 +1116,33 @@ class Cissa:
                                                                          'rolling Hurst exponent'              : rolling_hurst,
                                                                          'detrended rolling Hurst exponent'    : rolling_hurst_detrended,
                                                                          'robust_segmented_periodogram_slopes' : robust_segmented_results})
+        
+        # #run lomb-scargle analysis
+        # fig_segmented, fig_robust_linear, segmented_slopes, robust_linear_slopes, fig_robust_segmented,robust_segmented_results,ls_power= generate_lomb_scargle_peridogram_plots(
+        #                             # self.x_periodic+self.x_noise,self.psd,self.frequencies,
+        #                             self.x,self.psd,self.frequencies,
+        #                             significant_components=significant_components,
+        #                             # significant_components=[],
+        #                             alpha=alpha,
+        #                             max_breakpoints=max_breakpoints,
+        #                             n_boot=n_boot,
+        #                             normalization=normalization,
+        #                             center_data=center_data,
+        #                             fit_mean=fit_mean,
+        #                             nterms=nterms,
+        #                             **kwargs)
+        
+        # self.figures.get('cissa').update({'figure_LombScargle_robust_linear'    :fig_robust_linear})
+        # self.figures.get('cissa').update({'figure_LombScargle_segmented'        :fig_segmented})
+        # self.figures.get('cissa').update({'figure_LombScargle_robust_segmented' :fig_robust_segmented})
+        
+        # self.results.get('cissa').get('fractal scaling results').update({'lombScargle_power'           : ls_power})
+        # self.results.get('cissa').get('fractal scaling results').update({'robust_linear_LombScargle_slopes'    : robust_linear_slopes,
+        #                                                                  'segmented_LombScargle_slopes'        : segmented_slopes,
+        #                                                                  'robust_segmented_LombScargle_slopes' : robust_segmented_results})
+        
+        
+        
         if plt.get_fignums(): plt.close('all')
         return self
     #--------------------------------------------------------------------------
