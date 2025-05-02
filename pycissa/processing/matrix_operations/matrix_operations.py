@@ -1,5 +1,6 @@
 import numpy as np
 from multiprocessing.dummy import Pool as ThreadPool
+from scipy.linalg import toeplitz
 
 ###############################################################################
 ###############################################################################
@@ -56,6 +57,39 @@ def create_autocovariance_function(x: np.ndarray,
     for k in range(0,L):
         gam[k] = np.matmul((x[0:T-k]-np.mean(x)).transpose(),(x[k:T+1]-np.mean(x))/(T-k))
     return gam    
+
+def create_vector_autocovariance_function(x: np.ndarray,
+                                   L: int,
+                                   T: int) -> np.ndarray:
+    """
+    Vectorised autocovariance function (see https://arxiv.org/pdf/2102.01742).
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Input numpy array (shape (T,) or (T,1))
+    L : int
+        CiSSA window length.
+    T : int
+        Length of your input array x.
+
+    Returns
+    -------
+    gam : np.ndarray
+        Autocovariance function, shape (L,1)
+    """
+    # ensure 1D
+    x = x.flatten()
+    # subtract mean once
+    x_centered = x - x.mean()
+    # full autocorrelation (lags from -(T-1) to +(T-1))
+    acov_full = np.correlate(x_centered, x_centered, mode='full')
+    # extract lags 0 through L-1 (positions T-1 to T-1+L-1)
+    acov = acov_full[T-1 : T-1 + L]
+    # normalise by (T - k) for each lag k
+    denom = np.arange(T, T - L, -1)
+    gam = (acov / denom).reshape(L, 1)
+    return gam
 ###############################################################################
 ###############################################################################
 def create_toeplitz_circulant_matrices(x: np.ndarray,
@@ -88,7 +122,8 @@ def create_toeplitz_circulant_matrices(x: np.ndarray,
     '''
     
     S = None
-    gam = create_autocovariance_function(x,L,T)
+    # gam = create_autocovariance_function(x,L,T)
+    gam = create_vector_autocovariance_function(x,L,T)
     if generate_toeplitz_matrix:
         S = gam[0]*np.eye(L) 
     C = gam[0]*np.eye(L) 
@@ -102,6 +137,35 @@ def create_toeplitz_circulant_matrices(x: np.ndarray,
             C[j,i] = C[i,j];
     return S,C        
 
+def create_vector_toeplitz_circulant_matrices(
+                                            x: np.ndarray,
+                                            L: int,
+                                            T: int,
+                                            generate_toeplitz_matrix: bool = False
+                                        ) -> tuple[np.ndarray|None, np.ndarray]:
+    """
+    Vectorised generation of the CiSSA circulant (C) and, optionally,
+    Toeplitz (S) matrices. Pads gam so gam_pad[L]=0 and you never index out of bounds.
+    """
+    # 1) get the autocovariance vector (L×1) and flatten
+    gam = create_vector_autocovariance_function(x, L, T).flatten()  # shape (L,)
+    # pad with a zero at the end so gam_pad[L] is valid
+    gam_pad = np.concatenate([gam, [0.0]])  # shape (L+1,)
+
+    # 2) build the lag-difference matrix K = |i-j|
+    idx = np.arange(L)
+    K = np.abs(idx[:, None] - idx[None, :])  # shape (L, L)
+
+    # 3) circulant matrix:
+    #    C[i,j] = ((L-k)/L)*gam[k] + (k/L)*gam[L-k]
+    C = ((L - K) / L) * gam_pad[K] + (K / L) * gam_pad[L - K]
+
+    # 4) symmetric Toeplitz matrix (if requested)
+    S = None
+    if generate_toeplitz_matrix:
+        S = toeplitz(gam)  # first column is gam
+
+    return S, C
 ###############################################################################
 ###############################################################################
 def calculate_number_of_frequencies(L: int) -> int:
@@ -603,6 +667,7 @@ def perform_vectorized_reconstruction(U: np.ndarray,
         # stitch columns back into R
         for k, col in enumerate(cols):
             R[:, k] = col
+            
     else:
         # fall back to your original loop
         for k in range(L):
@@ -774,7 +839,9 @@ def run_cissa(x: np.ndarray,
     U = calculate_elementary_matrix(L)
     
     #5. calculate circulant matirx
-    S,C = create_toeplitz_circulant_matrices(x,L,T,generate_toeplitz_matrix=generate_toeplitz_matrix,                                           )
+    # S,C = create_toeplitz_circulant_matrices(x,L,T,generate_toeplitz_matrix=generate_toeplitz_matrix,                                           )
+    S,C = create_vector_toeplitz_circulant_matrices(x,L,T,generate_toeplitz_matrix=generate_toeplitz_matrix)
+    
     
     #6. estimate_power_spectral_density 
     psd = estimate_power_spectral_density(U,C)
@@ -858,7 +925,8 @@ def run_cissa_psd_step(x: np.ndarray,
     U = calculate_elementary_matrix(L)
     
     #5. calculate circulant matirx
-    S,C = create_toeplitz_circulant_matrices(x,L,T,generate_toeplitz_matrix=generate_toeplitz_matrix,                                           )
+    # S,C = create_toeplitz_circulant_matrices(x,L,T,generate_toeplitz_matrix=generate_toeplitz_matrix,                                           )
+    S,C = create_vector_toeplitz_circulant_matrices(x,L,T,generate_toeplitz_matrix=generate_toeplitz_matrix)
     
     #6. estimate_power_spectral_density 
     psd = estimate_power_spectral_density(U,C)
