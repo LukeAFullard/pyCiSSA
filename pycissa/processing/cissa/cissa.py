@@ -107,6 +107,7 @@ class Cissa:
             L: int,
             extension_type: str = 'AR_LR',
             multi_thread_run: bool = True,
+            num_workers: int = 2,
             generate_toeplitz_matrix: bool = False):
         '''
         Function to fit CiSSA to a timeseries.
@@ -128,6 +129,8 @@ class Cissa:
             DESCRIPTION: extension type for left and right ends of the time series. The default is AR_LR 
         multi_thread_run : bool, optional
             DESCRIPTION: Flag to indicate whether the diagonal averaging is performed on multiple cpu cores (True) or not. The default is True.
+        num_workers : int, optional
+            DESCRIPTION: If using multi-threading, how many workers to use.
         generate_toeplitz_matrix : bool, optional
             DESCRIPTION: Flag to indicate whether we need to calculate the symmetric Toeplitz matrix or not. The default is False. 
 
@@ -151,6 +154,7 @@ class Cissa:
                                       L,
                                       extension_type=extension_type,
                                       multi_thread_run=multi_thread_run,
+                                      num_workers=num_workers,
                                       generate_toeplitz_matrix=generate_toeplitz_matrix)
         
         #generate initial results dictionary
