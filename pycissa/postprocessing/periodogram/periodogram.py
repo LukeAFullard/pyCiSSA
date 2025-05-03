@@ -4,6 +4,8 @@ import piecewise_regression
 import statsmodels.api as sm
 import warnings
 import nolds
+min_width = 720
+min_height = 570
 ###############################################################################
 ###############################################################################
 
@@ -275,7 +277,18 @@ def plot_robust_segmented_linear_fit(my_freq                  : list,
         )
         
         ax.set_title(title_text, fontsize=10)
+        # Get the current figure size in inches and DPI
+        fig_width_inch, fig_height_inch = fig.get_size_inches()
+        dpi = fig.get_dpi()
         
+        # Convert to pixels
+        width_px = fig_width_inch * dpi
+        height_px = fig_height_inch * dpi
+        
+        if width_px < min_width or height_px < min_height:
+            new_width_inch = max(min_width / dpi, fig_width_inch)
+            new_height_inch = max(min_height / dpi, fig_height_inch)
+            fig.set_size_inches(new_width_inch, new_height_inch)
         return fig
 ###############################################################################
 ###############################################################################
@@ -442,7 +455,18 @@ def plot_linear_fit(my_freq      : list,
     f"({slope_ci[0]} - {slope_ci[1]})",
     fontsize=10
     )
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
     
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)
     return fig
      
 ###############################################################################
@@ -524,7 +548,18 @@ def plot_segmented_fit(my_freq         : list,
                     )
                     
                     ax.set_title(title_text, fontsize=10)
-                        
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
+    
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)                    
     return fig                    
             
 ###############################################################################
@@ -549,7 +584,18 @@ def plot_rolling_hurst(rolling_hurst,rolling_hurst_detrended,window):
     
     # Adjust layout
     plt.tight_layout()
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
     
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)
     # Return the figure object
     return fig
 
@@ -691,8 +737,13 @@ def generate_peridogram_plots(
         DESCRIPTION. Array of rolling Hurst exponents for the detrended time series (unsure if this is correct, use with caution).
 
     '''
+    
+    y = x_trend + x_detrended
+    
     #get psd and frequencies of interest
-    my_freq,my_psd,removed_psd,removed_freq = make_periodogram_arrays(psd, frequencies,significant_components=significant_components)
+    my_freq,my_psd_,removed_psd,removed_freq = make_periodogram_arrays(psd, frequencies,significant_components=significant_components)
+    normalisation_factor = 2 / (y.size * np.mean(y**2))
+    my_psd = [x*normalisation_factor for x in my_psd_]
     
     #make linear plot.
     ols_result = linear_fit(my_freq,my_psd,alpha=alpha)
@@ -856,12 +907,6 @@ def generate_lomb_scargle_peridogram_plots(
     
     ls_power_ = [x for x,y in zip(ls_power,sorted(my_freq+removed_freq)) if y not in removed_freq]
     
-    #make linear plot.
-    ols_result = linear_fit(my_freq,ls_power_,alpha=alpha)
-    fig_linear = plot_linear_fit(my_freq,ls_power_,alpha,ols_result,removed_psd,removed_freq,**kwargs)
-    linear_slopes = { 'slope' : ols_result['slope']['result'],
-     'confidence_interval' : ols_result['slope']['confidence_interval']}
-    
     #make robust linear plot
     robust_ols_result = robust_linear_fit(my_freq, ls_power_, alpha=alpha)
     fig_robust_linear = plot_linear_fit(my_freq,ls_power_,alpha,robust_ols_result,removed_psd,removed_freq,legend_label = 'robust linear fit', title = 'Periodogram - robust linear fit')
@@ -902,7 +947,7 @@ def generate_lomb_scargle_peridogram_plots(
             
     
     
-    return fig_linear, fig_segmented, fig_robust_linear, linear_slopes, segmented_slopes, robust_linear_slopes, fig_robust_segmented,robust_segmented_results,ls_power
+    return fig_segmented, fig_robust_linear, segmented_slopes, robust_linear_slopes, fig_robust_segmented,robust_segmented_results,ls_power
     
 
 

@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 import copy
+min_width = 720
+min_height = 570
 #########################################################################
 #########################################################################
 #########################################################################
@@ -21,7 +23,18 @@ def plot_time_series(t: np.ndarray,
     
     # Adjust layout
     plt.tight_layout()
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
     
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)
     # Return the figure object
     return fig
 #########################################################################
@@ -58,7 +71,18 @@ def plot_grouped_components(t: np.ndarray,
     
     # Adjust layout
     plt.tight_layout()
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
     
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)
     # Return the figure object
     return fig
 #########################################################################
@@ -87,7 +111,18 @@ def plot_noise_residual(x: np.ndarray, x_noise: np.ndarray):
     
     # Adjust layout to prevent overlap
     plt.tight_layout()
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
     
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)
     # Return the figure object
     return fig
 
@@ -122,7 +157,18 @@ def plot_detrended_signal(t: np.ndarray,
     
     # Adjust layout
     plt.tight_layout()
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
     
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)
     # Return the figure object
     return fig
 #########################################################################
@@ -154,7 +200,18 @@ def plot_denoised_signal(t: np.ndarray,
     
     # Adjust layout
     plt.tight_layout()
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
     
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)
     # Return the figure object
     return fig
 #########################################################################
@@ -290,7 +347,18 @@ def seasonal_boxplots(t:          np.ndarray,
             patch.set_facecolor('lightblue')
         # Add title and labels
         ax.set_ylabel('Value')
-        
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
+    
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)    
     return fig    
 
 
@@ -352,7 +420,18 @@ def yearly_boxplots(t:          np.ndarray,
     # Add title and labels
     ax.set_ylabel('Value')
     ax.set_xticklabels(years,rotation=90, ha='right')  # Rotate labels
-        
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
+    
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)    
     return fig    
 
         

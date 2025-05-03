@@ -2,7 +2,8 @@ import numpy as np
 import copy
 import matplotlib.pyplot as plt
 import warnings
-
+min_width = 720
+min_height = 570
 def get_surrogate_data(data:            np.ndarray,
                        L:               int,
                        psd:             np.ndarray,
@@ -224,6 +225,19 @@ def plot_monte_carlo_results(plot_period:                      list,
     if log_scale:
         ax.set_yscale('log')
         ax.set_xscale('log')
+        
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
+    
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)    
     return fig,ax
 ###############################################################################
 ###############################################################################

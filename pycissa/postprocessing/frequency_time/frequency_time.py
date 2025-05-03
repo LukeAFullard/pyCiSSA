@@ -1,4 +1,6 @@
 import numpy as np
+min_width = 720
+min_height = 570
 def normalise_matrix_array(my_array: np.ndarray) -> np.ndarray:
     '''
     Function to normalise an array the the sum of a row
@@ -204,6 +206,20 @@ def plot_frequency_time(t:       np.ndarray,
     ax.set_xlabel(t_unit)
     ax.set_ylabel("Frequency") 
     clb.ax.set_title(Y_unit)
+    
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
+    
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)
+    
     return fig,ax
 
 ###############################################################################
@@ -268,6 +284,19 @@ def plot_period_time(t:           np.ndarray,
     ax.set_xlabel(t_unit)
     ax.set_ylabel(f"Period ({period_name})") 
     clb.ax.set_title(Y_unit)
+    
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
+    
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)
     return fig,ax
 
 ###############################################################################

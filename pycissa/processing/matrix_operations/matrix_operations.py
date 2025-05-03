@@ -143,10 +143,29 @@ def create_vector_toeplitz_circulant_matrices(
                                             T: int,
                                             generate_toeplitz_matrix: bool = False
                                         ) -> tuple[np.ndarray|None, np.ndarray]:
-    """
-    Vectorised generation of the CiSSA circulant (C) and, optionally,
-    Toeplitz (S) matrices. Pads gam so gam_pad[L]=0 and you never index out of bounds.
-    """
+    '''
+    Vectorised function to generate the circulant matrix (C) and optonally the symmetric Toeplitz matrix (S).
+    See https://arxiv.org/pdf/2102.01742.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        DESCRIPTION: Input numpy array
+    L : int
+        DESCRIPTION: CiSSA window length.
+    T : int
+        DESCRIPTION: Input array length
+    generate_toeplitz_matrix : bool, optional
+        DESCRIPTION: Flag to indicate whether we need to calculate the symmetric Toeplitz matrix or not. The default is False.
+
+    Returns
+    -------
+    S : np.ndarray OR None
+        DESCRIPTION: If generate_toeplitz_matrix == True, the symmetric Toeplitz matrix, otherwise None
+    C : np.ndarray
+        DESCRIPTION: Circulant matrix.
+
+    '''
     # 1) get the autocovariance vector (L×1) and flatten
     gam = create_vector_autocovariance_function(x, L, T).flatten()  # shape (L,)
     # pad with a zero at the end so gam_pad[L] is valid

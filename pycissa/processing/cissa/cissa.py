@@ -1121,31 +1121,7 @@ class Cissa:
                                                                          'detrended rolling Hurst exponent'    : rolling_hurst_detrended,
                                                                          'robust_segmented_periodogram_slopes' : robust_segmented_results})
         
-        # #run lomb-scargle analysis
-        # fig_segmented, fig_robust_linear, segmented_slopes, robust_linear_slopes, fig_robust_segmented,robust_segmented_results,ls_power= generate_lomb_scargle_peridogram_plots(
-        #                             # self.x_periodic+self.x_noise,self.psd,self.frequencies,
-        #                             self.x,self.psd,self.frequencies,
-        #                             significant_components=significant_components,
-        #                             # significant_components=[],
-        #                             alpha=alpha,
-        #                             max_breakpoints=max_breakpoints,
-        #                             n_boot=n_boot,
-        #                             normalization=normalization,
-        #                             center_data=center_data,
-        #                             fit_mean=fit_mean,
-        #                             nterms=nterms,
-        #                             **kwargs)
-        
-        # self.figures.get('cissa').update({'figure_LombScargle_robust_linear'    :fig_robust_linear})
-        # self.figures.get('cissa').update({'figure_LombScargle_segmented'        :fig_segmented})
-        # self.figures.get('cissa').update({'figure_LombScargle_robust_segmented' :fig_robust_segmented})
-        
-        # self.results.get('cissa').get('fractal scaling results').update({'lombScargle_power'           : ls_power})
-        # self.results.get('cissa').get('fractal scaling results').update({'robust_linear_LombScargle_slopes'    : robust_linear_slopes,
-        #                                                                  'segmented_LombScargle_slopes'        : segmented_slopes,
-        #                                                                  'robust_segmented_LombScargle_slopes' : robust_segmented_results})
-        
-        
+
         
         if plt.get_fignums(): plt.close('all')
         return self

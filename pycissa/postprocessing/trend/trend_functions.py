@@ -5,7 +5,8 @@ from statsmodels.regression.rolling import RollingOLS
 import statsmodels.api as sm
 import datetime
 import copy
-
+min_width = 720
+min_height = 570
 
 confidence_colour_map = {
     'Highly unlikely'     :   '#ff0000',
@@ -102,7 +103,18 @@ def plot_trend(Y:               np.ndarray,
     plt.xticks(rotation=xaxis_rotation)
     ax.set_xlabel(t_unit)
     ax.set_ylabel("Trend (" + Y_unit + '/' + timestep_unit + ")") 
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
     
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)
     return fig
     
 
@@ -207,6 +219,18 @@ def plot_linear_trend(Y:               np.ndarray,
     plt.xticks(rotation=xaxis_rotation)
     ax.set_xlabel(t_unit)
     ax.set_ylabel(Y_unit)
+    # Get the current figure size in inches and DPI
+    fig_width_inch, fig_height_inch = fig.get_size_inches()
+    dpi = fig.get_dpi()
+    
+    # Convert to pixels
+    width_px = fig_width_inch * dpi
+    height_px = fig_height_inch * dpi
+    
+    if width_px < min_width or height_px < min_height:
+        new_width_inch = max(min_width / dpi, fig_width_inch)
+        new_height_inch = max(min_height / dpi, fig_height_inch)
+        fig.set_size_inches(new_width_inch, new_height_inch)
     return fig
 
 ###############################################################################
