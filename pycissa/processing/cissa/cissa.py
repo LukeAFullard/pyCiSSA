@@ -1687,7 +1687,6 @@ class Cissa:
      
     #List of stuff to add in here
     '''  
-    check figure sizes
     function commenting!
     predict method (TO DO, maybe using MAPIE? sktime? autots?)
     add option to center data (HARD)
