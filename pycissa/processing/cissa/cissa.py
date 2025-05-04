@@ -88,6 +88,8 @@ class Cissa:
         self.t = t #array of times
         self.x = x #array of corresponding data
         
+        self.information_text = ''  #information about outputs
+        
         if not hasattr(self, 'figures'):
             self.figures = {}  #make a space for future figures
         self.figures.update({'cissa':{}})
@@ -907,10 +909,71 @@ class Cissa:
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
-    # smallest_n number_of_groups_to_drop include_trend
-    # smallest_proportion eigenvalue_proportion
-    # monte_carlo
-    # 'drop_smallest_n', 'drop_smallest_proportion', 'monte_carlo_significant_components'
+    def post_group_manual(self,
+                                I:                         int|float|dict,
+                                season_length:             int = 1, 
+                                cycle_length:              list = [1.5,8], 
+                                include_noise:             bool = True,):
+        '''
+        GROUP - Manual Grouping step of CiSSA.  https://doi.org/10.1016/j.sigpro.2020.107824.
+       
+        This function groups the reconstructed components by frequency
+        obtained with CiSSA into disjoint subsets and computes the share of the
+        corresponding PSD.
+       
+        Syntax:     [rc, sh, kg] = group(Z,psd,I)
+        
+        Conversion from Matlab, https://github.com/jbogalo/CiSSA
+
+
+        Parameters
+        ----------
+        I : multiple
+            DESCRIPTION: 
+                 Four options:
+                 1) A positive integer. It is the number of data per year in
+                 time series. The function automatically computes the
+                 trend (oscillations with period greater than 8 years), the
+                 business cycle (oscillations with period between 8 & 1.5 years)
+                 and seasonality.
+                 2) A dictionary. Each value contains a numpy row vector with the desired
+                 values of k to be included in a group, k=0,1,2,...,L/2-1. The function
+                 computes the reconstructed components for these groups.
+                 3) A number between 0 & 1. This number represents the accumulated
+                 share of the psd achieved with the sum of the share associated to
+                 the largest eigenvalues. The function computes the original
+                 reconstructed time series as the sum of these components.
+                 4) A number between -1 & 0. It is a percentile (in positive) of
+                 the psd. The function computes the original reconstructed time
+                 series as the sum of the reconstructed componentes by frequency
+                 whose psd is greater that this percentile.
+        season_length : int, optional
+            DESCRIPTION: The default is 1. Only used for case 1. when I = A positive integer. Can be modified in the case that the season is not equal to the number of data per year. For example, if a "season" is 2 years, we enter I = 365 (for days in year) and 2 for season_length because the season is 365*2, or data_per_year*season_length.
+        cycle_length : list, optional
+            DESCRIPTION: The default is [1.5,8]. List of longer term cycle periods. Only used for case 1.
+        include_noise : bool, optional
+            DESCRIPTION: The default is True. Output noise as a vector component or not. Only used for case 1. 
+        '''
+        
+        from pycissa.postprocessing.grouping.grouping_functions import group
+        #check that all necessary input variables exist 
+        necessary_attributes = ["Z","psd","L","results"]
+        for attr_i in necessary_attributes:
+            if not hasattr(self, attr_i): raise ValueError(f"Attribute {attr_i} does not appear to exist in the class. Please run the pycissa fit method before running the post_group_components method.")
+            
+        rc,sh,kg,psd_sh = group(self.Z,
+                         self.psd,
+                         I,
+                         )
+        self.results['cissa']['manual'] = {}
+        self.results['cissa']['manual']['rc'] = rc
+        self.results['cissa']['manual']['sh'] = sh
+        self.results['cissa']['manual']['kg'] = kg
+        self.results['cissa']['manual']['psd_sh'] = psd_sh
+        
+            
+        return self
+    
     def post_group_components(self,
                                  grouping_type:            str = 'monte_carlo', 
                                  eigenvalue_proportion:    float = 0.9,
@@ -1687,6 +1750,8 @@ class Cissa:
      
     #List of stuff to add in here
     '''  
+    Add original manual grouping
+    add print summary text
     gap fill one component at a time
     function commenting!
     predict method (TO DO, maybe using MAPIE? sktime? autots?)
