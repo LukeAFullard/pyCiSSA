@@ -394,6 +394,12 @@ class Cissa:
         from pycissa.preprocessing.data_cleaning.data_cleaning import detect_nan_data
         self.isnan = detect_nan_data(self.x)
         if plt.get_fignums(): plt.close('all')
+        
+        self.information_text += f'''
+        ------------------------------------------------------
+        gap fill RMSE  : {self.gap_fill_error_rmse}
+        gap fill % RMSE: {self.gap_fill_error_rmse_percentage}
+        '''#information about outputs
 
         return self
     #--------------------------------------------------------------------------
@@ -906,6 +912,16 @@ class Cissa:
         self.results['cissa']['model parameters'].update({'monte_carlo_alpha':alpha}) 
         self.figures.get('cissa').update({'figure_monte_carlo':figure_monte_carlo})
         if plt.get_fignums(): plt.close('all')
+        
+        self.information_text += f'''
+        ------------------------------------------------------
+        MONTE CARLO SIGNIFICANCE TESTING
+        '''
+        for component_j in self.results.get('cissa').get('components'):
+            if self.results.get('cissa').get('components').get(component_j).get('monte_carlo').get(surrogates).get('alpha').get(alpha).get('pass'):
+                self.information_text += f'''
+        Unitless frequency: {component_j} SIGNIFICANT.
+                '''
         return self
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
@@ -1097,6 +1113,15 @@ class Cissa:
         
 
         if plt.get_fignums(): plt.close('all')
+        
+        self.information_text += f'''
+        ------------------------------------------------------
+        COMPONENT VARIANCE
+        TREND   : {self.results.get('cissa').get('noise component tests').get('trend_share')}%
+        PERIODIC: {self.results.get('cissa').get('noise component tests').get('periodic_share')}%
+        NOISE   : {self.results.get('cissa').get('noise component tests').get('noise_share')}%
+        '''
+        
         return self
     
     #--------------------------------------------------------------------------
@@ -1750,8 +1775,6 @@ class Cissa:
      
     #List of stuff to add in here
     '''  
-    Add original manual grouping
-    add print summary text
     gap fill one component at a time
     function commenting!
     predict method (TO DO, maybe using MAPIE? sktime? autots?)
