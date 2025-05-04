@@ -1687,6 +1687,7 @@ class Cissa:
      
     #List of stuff to add in here
     '''  
+    gap fill one component at a time
     function commenting!
     predict method (TO DO, maybe using MAPIE? sktime? autots?)
     add option to center data (HARD)
