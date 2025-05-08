@@ -216,22 +216,23 @@ class Cissa:
     #-------------------------------------------------------------------------- 
     def pre_fill_gaps(self,                     
                   L:                          int,
-                  convergence:                list = ['value', 1],
+                  convergence:                list|None = None,
                   extension_type:             str  = 'AR_LR',
                   multi_thread_run:           bool = True,
                   initial_guess:              list = ['previous', 1],
                   outliers:                   list = ['nan_only',None],
                   estimate_error:             bool  = True,
                   test_number:                int = 10,
-                  test_repeats:               int = 1,
+                  test_repeats:               int = 5,
                   z_value:                    float = 1.96,
                   component_selection_method: str = 'monte_carlo_significant_components',
                   eigenvalue_proportion:      float = 0.95,
                   number_of_groups_to_drop:   int = 1,
+                  min_number_of_groups_to_drop:int = 1,
                   data_per_unit_period:       int = 1,
                   use_cissa_overlap:          bool = False,
                   drop_points_from:           str = 'Left',
-                  max_iter:                   int = 50,
+                  max_iter:                   int = 100,
                   verbose:                    bool = False,
                   alpha:                      float = 0.05,
                   **kwargs,
@@ -267,7 +268,7 @@ class Cissa:
                              1) ['value', threshold] -- convergence error must be less than the threshold value to signify convergence
                              2) ['min', multiplier]  -- convergence error must be less than the multiplier*(minimum non-outlier value of the data) to signify convergence
                              3) ['med', multiplier]  -- convergence error must be less than the multiplier*(median non-outlier value of the data) to signify convergence.
-                        The default is ['value', 1].
+                        The default is ['value', 0.01 * np.nanmin(self.x)].
         extension_type : str, optional
             DESCRIPTION. extension type for left and right ends of the time series. The default is 'AR_LR'.
         multi_thread_run : bool, optional
@@ -294,19 +295,24 @@ class Cissa:
         test_number : int  
             DESCRIPTION: Number of known points to remove in each iteration to help validate the error (the larger the longer the code will take to run but more accurate our error estimate). The default is 10.
         test_repeats : int
-            DESCRIPTION: Number of times to repeat the gap filling process to estimate error (the larger the longer the code will take to run but more accurate our error estimate). The default is 1.    
+            DESCRIPTION: Number of times to repeat the gap filling process to estimate error (the larger the longer the code will take to run but more accurate our error estimate). The default is 5.    
         z_value : float, optional
             DESCRIPTION: z-value for confidence interval (= 1.96 for a 95% confidence interval, for example)           
         component_selection_method : str, optional
-            DESCRIPTION. Method for choosing the way we drop components from the reconstruction. Current options are 'drop_smallest_n', 'drop_smallest_proportion', 'monte_carlo_significant_components'. The default is 'monte_carlo_significant_components'.
+            DESCRIPTION. Method for choosing the way we drop components from the reconstruction. Current options are 'drop_smallest_n', 'drop_smallest_proportion', 'monte_carlo_significant_components', or to perform iterative imputation (iterating through all components from largest to smallest, adding one more at a time), select 'add_components_iteratively'. The default is 'monte_carlo_significant_components'.
+            
         eigenvalue_proportion : float, optional
             DESCRIPTION. only used if component_selection_method == 'drop_smallest_proportion'.
                          if between 0 and 1, the cumulative proportion psd to keep, or if between -1 and 0, a psd proportion threshold to keep a component.
                          The default is 0.95.
         number_of_groups_to_drop : int, optional
-            DESCRIPTION. only used if component_selection_method == 'drop_smallest_n'.
+            DESCRIPTION. only used if component_selection_method == 'add_components_iteratively'.
                          Number of components to drop from the reconstruction.
                          The default is 1.
+        min_number_of_groups_to_drop  : int, optional
+            DESCRIPTION. only used if component_selection_method == 'drop_smallest_n'.
+                         MINIMUM number of components to drop from the reconstruction during the optimisation.
+                         The default is 1.               
         data_per_unit_period : int, optional
             DESCRIPTION. How many data points per season period. If season is annual, season_length is number of data points in a year.
                          The default is 1.
@@ -344,40 +350,67 @@ class Cissa:
             DESCRIPTION: Figure plotting the time series with imputed values. 
 
         '''
-        from pycissa.preprocessing.gap_fill.gap_filling import fill_timeseries_gaps
-        from pycissa.postprocessing.monte_carlo.montecarlo import prepare_monte_carlo_kwargs
-        if self.censored:  raise ValueError("Censored data detected. Please run pre_fix_censored_data before fitting.")
-        K_surrogates, surrogates, seed, sided_test, remove_trend,trend_always_significant, A_small_shuffle, generate_toeplitz_matrix = prepare_monte_carlo_kwargs(kwargs)
-        x_ca,error_estimates,error_estimates_percentage,error_rmse,error_rmse_percentage,original_points,imputed_points, fig_errors,fig_time_series = fill_timeseries_gaps(
-                                self.t,                     
-                                self.x,
-                                 L,
-                                 convergence=convergence,
-                                 extension_type=extension_type,
-                                 multi_thread_run=multi_thread_run,
-                                 initial_guess=initial_guess,
-                                 outliers=outliers,
-                                 estimate_error=estimate_error,
-                                 z_value=z_value,
-                                 component_selection_method=component_selection_method,
-                                 eigenvalue_proportion=eigenvalue_proportion,
-                                 number_of_groups_to_drop=number_of_groups_to_drop,
-                                 data_per_unit_period=data_per_unit_period,
-                                 use_cissa_overlap=use_cissa_overlap,
-                                 drop_points_from=drop_points_from,
-                                 max_iter=max_iter,
-                                 test_number=test_number,
-                                 test_repeats=test_repeats,
-                                 verbose=verbose,
-                                 alpha=alpha,
-                                 K_surrogates=K_surrogates,
-                                 surrogates=surrogates,
-                                 seed=seed,   
-                                 sided_test=sided_test,
-                                 remove_trend=remove_trend,
-                                 trend_always_significant=trend_always_significant,
-                                 A_small_shuffle=A_small_shuffle,
-                                 generate_toeplitz_matrix=generate_toeplitz_matrix,)
+        
+        if convergence is None:
+            convergence = ['value', 0.01 * np.nanmin(self.x)]
+        
+        if component_selection_method == 'add_components_iteratively':
+            from pycissa.preprocessing.gap_fill.gap_filling import fill_timeseries_gaps_iterative_components
+            x_ca,error_estimates,error_estimates_percentage,error_rmse,error_rmse_percentage,original_points,imputed_points, fig_errors,fig_time_series = fill_timeseries_gaps_iterative_components(
+                                    self.t,                     
+                                    self.x,
+                                     L,
+                                     convergence=convergence,
+                                     extension_type=extension_type,
+                                     multi_thread_run=multi_thread_run,
+                                     initial_guess=initial_guess,
+                                     outliers=outliers,
+                                     estimate_error=estimate_error,
+                                     number_of_groups_to_drop=number_of_groups_to_drop,
+                                     test_number=test_number,
+                                     test_repeats=test_repeats,
+                                     z_value=z_value,
+                                     data_per_unit_period=data_per_unit_period,
+                                     use_cissa_overlap=use_cissa_overlap,
+                                     drop_points_from=drop_points_from,
+                                     max_iter=max_iter,
+                                     verbose=verbose,
+                                     )
+        else:
+            from pycissa.preprocessing.gap_fill.gap_filling import fill_timeseries_gaps
+            from pycissa.postprocessing.monte_carlo.montecarlo import prepare_monte_carlo_kwargs
+            if self.censored:  raise ValueError("Censored data detected. Please run pre_fix_censored_data before fitting.")
+            K_surrogates, surrogates, seed, sided_test, remove_trend,trend_always_significant, A_small_shuffle, generate_toeplitz_matrix = prepare_monte_carlo_kwargs(kwargs)
+            x_ca,error_estimates,error_estimates_percentage,error_rmse,error_rmse_percentage,original_points,imputed_points, fig_errors,fig_time_series = fill_timeseries_gaps(
+                                    self.t,                     
+                                    self.x,
+                                     L,
+                                     convergence=convergence,
+                                     extension_type=extension_type,
+                                     multi_thread_run=multi_thread_run,
+                                     initial_guess=initial_guess,
+                                     outliers=outliers,
+                                     estimate_error=estimate_error,
+                                     z_value=z_value,
+                                     component_selection_method=component_selection_method,
+                                     eigenvalue_proportion=eigenvalue_proportion,
+                                     number_of_groups_to_drop=number_of_groups_to_drop,
+                                     data_per_unit_period=data_per_unit_period,
+                                     use_cissa_overlap=use_cissa_overlap,
+                                     drop_points_from=drop_points_from,
+                                     max_iter=max_iter,
+                                     test_number=test_number,
+                                     test_repeats=test_repeats,
+                                     verbose=verbose,
+                                     alpha=alpha,
+                                     K_surrogates=K_surrogates,
+                                     surrogates=surrogates,
+                                     seed=seed,   
+                                     sided_test=sided_test,
+                                     remove_trend=remove_trend,
+                                     trend_always_significant=trend_always_significant,
+                                     A_small_shuffle=A_small_shuffle,
+                                     generate_toeplitz_matrix=generate_toeplitz_matrix,)
         
         self.x = x_ca.reshape(len(x_ca),)
         self.gap_fill_error_estimates            = error_estimates
@@ -1622,9 +1655,10 @@ class Cissa:
             from pycissa.utilities.helper_functions import get_keyword_args
             keys_to_remove = get_keyword_args(self.pre_fill_gaps)
             temp_kwargs = {key: value for key, value in kwargs.items() if key not in keys_to_remove}
+            convergence_ = ['value', 0.01 * np.nanmin(self.x)]
             _ = self.pre_fill_gaps(                    
                           L,
-                          convergence                = kwargs.get('convergence',['value', 1]),
+                          convergence                = kwargs.get('convergence',convergence_),
                           extension_type             = kwargs.get('extension_type','AR_LR'),
                           multi_thread_run           = kwargs.get('multi_thread_run',True),
                           initial_guess              = kwargs.get('initial_guess',['previous', 1]),
@@ -1775,7 +1809,9 @@ class Cissa:
      
     #List of stuff to add in here
     '''  
-    gap fill one component at a time
+    Iterative Component Gap Fill -  do we rest the x every time or start from last result?
+    TESTING ALL FUNCTIONS!!!!!
+    add print summary text
     function commenting!
     predict method (TO DO, maybe using MAPIE? sktime? autots?)
     add option to center data (HARD)

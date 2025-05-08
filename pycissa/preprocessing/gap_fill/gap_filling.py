@@ -543,8 +543,10 @@ def update_imputed_gap_values(x_new: np.ndarray,
             from pycissa.postprocessing.monte_carlo.montecarlo import run_monte_carlo_test,prepare_monte_carlo_kwargs
             temp_results = generate_results_dictionary(Z,psd,L)
             K_surrogates, surrogates, seed, sided_test, remove_trend,trend_always_significant, A_small_shuffle, generate_toeplitz_matrix = prepare_monte_carlo_kwargs(kwargs)
-            
-            temp_result,_ = run_monte_carlo_test(x_new,L,psd,temp_results.get('cissa'),alpha=alpha,
+            from pycissa.postprocessing.grouping.grouping_functions import generate_grouping
+            myfrequencies = generate_grouping(psd,L, trend=True)
+            temp_result,_ = run_monte_carlo_test(x_new,L,psd,Z,temp_results.get('cissa'),myfrequencies,
+                                     alpha=alpha,
                                      K_surrogates=K_surrogates,
                                      surrogates=surrogates,
                                      seed=seed,   
@@ -575,7 +577,7 @@ def update_imputed_gap_values(x_new: np.ndarray,
     updated_values = temp_array[final_out]
     x_new[final_out] = updated_values.reshape(x_new[final_out].shape)
     
-    return x_new,x_old
+    return x_new,x_old,temp_array
 ###############################################################################
 ###############################################################################
 def produce_error_comparison_figure(original_points:      np.ndarray,
@@ -606,7 +608,7 @@ def produce_error_comparison_figure(original_points:      np.ndarray,
 
     '''
     #plotting one to one figure
-    fig, (ax1, ax2) = plt.subplots(2)
+    fig, (ax1, ax2, ax3) = plt.subplots(3, constrained_layout=True)
     ax1.plot(original_points, imputed_points, marker = '*',linestyle="None")
     xmin = min(original_points.min(), imputed_points.min())
     xmax = max(original_points.max(), imputed_points.max())
@@ -618,6 +620,13 @@ def produce_error_comparison_figure(original_points:      np.ndarray,
     ax2.plot([xmin, xmax], [0, 0], color="red", linestyle="--")
     ax2.set_title("Residual plot")
     ax2.set(xlabel='original', ylabel='residuals')
+    
+    # Histogram of residuals on ax3
+    ax3.hist(residuals, bins=30, color='skyblue', edgecolor='black')
+    ax3.axvline(0, color='red', linestyle='--', label='Zero Error')
+    ax3.set_title("Histogram of Residuals")
+    ax3.set(xlabel='Residual', ylabel='Frequency')
+    ax3.legend()
     
     # Get the current figure size in inches and DPI
     fig_width_inch, fig_height_inch = fig.get_size_inches()
@@ -700,7 +709,269 @@ def plot_time_series_with_imputed_values(t,x_ca,out,rmse,z_value):
 
 ###############################################################################
 ###############################################################################
+def fill_timeseries_gaps_iterative_components(t:                          np.ndarray,
+                         x:                          np.ndarray,
+                         L:                          int,
+                         convergence:                list = ['value', 1],
+                         extension_type:             str  = 'AR_LR',
+                         multi_thread_run:           bool = True,
+                         initial_guess:              list = ['previous', 1],
+                         outliers:                   list = ['nan_only',None],
+                         estimate_error:             bool  = True,
+                         test_number:                int = 10,
+                         test_repeats:               int = 5,
+                         z_value:                    float = 1.96,  
+                         component_selection_method: str = 'drop_smallest_n',
+                         min_number_of_groups_to_drop:int = 1,
+                         data_per_unit_period:       int = 1,
+                         use_cissa_overlap:          bool = False,
+                         drop_points_from:           str = 'Left',
+                         max_iter:                   int = 100,
+                         verbose:                    bool = False,
+                         **kwargs,
+                         ):
+    '''
+    Function to fill in gaps (NaN values) and/or replace outliers in a timeseries via imputation.
+    This is achieved by replacing gaps/outliers with an initial guess and then iteratively running the CiSSA (or overlap-CiSSA) method, keeping some (but not all) of the reconstructed series in each step of the algorithm, until convergence is achieved. 
+    Optionally, we evaluate the accuracy of the imputation by testing known points.
+    
+    -------------------------------------------------------------------------
+    References:
+    [1] Bógalo, J., Poncela, P., & Senra, E. (2021). 
+        "Circulant singular spectrum analysis: a new automated procedure for signal extraction". 
+          Signal Processing, 179, 107824.
+        https://doi.org/10.1016/j.sigpro.2020.107824.
+    [2] Bógalo, J., Llada, M., Poncela, P., & Senra, E. (2022). 
+        "Seasonality in COVID-19 times". 
+          Economics Letters, 211, 110206.
+          https://doi.org/10.1016/j.econlet.2021.110206
+    -------------------------------------------------------------------------
 
+    Parameters
+    ----------
+    t : np.ndarray
+        DESCRIPTION: Array of input times.
+    x : np.ndarray
+        DESCRIPTION: Input time series array which possibly has
+    L : int
+        DESCRIPTION: CiSSA window length.
+    convergence : list, optional
+        DESCRIPTION. How to define the convergence of the outlier fitting method.
+                     Current options are:
+                         1) ['value', threshold] -- convergence error must be less than the threshold value to signify convergence
+                         2) ['min', multiplier]  -- convergence error must be less than the multiplier*(minimum non-outlier value of the data) to signify convergence
+                         3) ['med', multiplier]  -- convergence error must be less than the multiplier*(median non-outlier value of the data) to signify convergence.
+                    The default is ['value', 1].
+    extension_type : str, optional
+        DESCRIPTION. extension type for left and right ends of the time series. The default is 'AR_LR'.
+    multi_thread_run : bool, optional
+        DESCRIPTION. Flag to indicate whether the diagonal averaging is performed on multiple cpu cores (True) or not. The default is True.. The default is True.
+    initial_guess : list, optional
+        DESCRIPTION. How to choose the initial guess for the missing data/outliers.
+                     Current options are:
+                         1) ['max', ''] -- Initial guess is the maximum of the time series (ignoring outliers)
+                         2) ['median', ''] -- Initial guess is the median of the time series
+                         3) ['value', numeric] -- Initial guess is the provided numeric value, the second entry in the list.
+                         4) ['previous', numeric] -- Initial guess is the previous value of the time series (ignoring any outliers) multiplied by the numeric value, the second entry in the input list.
+                    The default is ['previous', 1].
+    outliers : list, optional
+        DESCRIPTION. How to find outliers/missing values and the threshold value. 
+                     Current options are:
+                         0) ['nan_only',None]  -- classified all NaN values as outliers/missing data
+                         1) ['<',threshold]  -- classifies all values below the threshold as outliers
+                         2) ['>',threshold]  -- classifies all values above the threshold as outliers
+                         3) ['<>',[low_threshold, hi_threshold]]  -- classifies all values not between the two thresholds as outliers
+                         4) ['k',multiplier]  -- classifies all values above the multiplier of the median average deviation as outliers. IMPORTANT NOTE: Does not converge very well/at all if there are consecutive missing values.
+                    The default is ['nan_only',None].
+    estimate_error : bool, optional
+        DESCRIPTION: Flag which determines if we will be estimating the error in the gap filling or not. The default is True.
+    test_number : int  
+        DESCRIPTION: Number of known points to remove in each iteration to help validate the error (the larger the longer the code will take to run but more accurate our error estimate). The default is 10.
+    test_repeats : int
+        DESCRIPTION: Number of times to repeat the gap filling process to estimate error (the larger the longer the code will take to run but more accurate our error estimate). The default is 1.    
+    z_value : float, optional
+        DESCRIPTION: z-value for confidence interval (= 1.96 for a 95% confidence interval, for example)       
+    component_selection_method : str, optional
+        DESCRIPTION. Method for choosing the way we drop components from the reconstruction. Current options are 'drop_smallest_n', 'drop_smallest_proportion', 'monte_carlo_significant_components'. The default is 'monte_carlo_significant_components'.
+    eigenvalue_proportion : float, optional
+        DESCRIPTION. only used if component_selection_method == 'drop_smallest_proportion'.
+                     if between 0 and 1, the cumulative proportion psd to keep, or if between -1 and 0, a psd proportion threshold to keep a component.
+                     The default is 0.95.
+    number_of_groups_to_drop : int, optional
+        DESCRIPTION. only used if component_selection_method == 'drop_smallest_n'.
+                     Number of components to drop from the reconstruction.
+                     The default is 1.
+    data_per_unit_period : int, optional
+        DESCRIPTION. How many data points per season period. If season is annual, season_length is number of data points in a year.
+                     The default is 1.
+    use_cissa_overlap : bool, optional
+        DESCRIPTION. Whether we use ordinary CiSSA (True) or overlap-Cissa (False). The default is False. The default is False.
+    drop_points_from : str, optional
+        DESCRIPTION. Only used if use_cissa_overlap == True. If the time series does not divide the overlap exactly, which side to drop data from. The default is 'Left'. 
+    max_iter : int, optional
+        DESCRIPTION. Maximum number of iterations to check for convergence. The default is 50.
+    verbose : bool, optional
+        DESCRIPTION. Whether to print some info to the console or not. The default is False.
+
+    Returns  
+    -------
+    x_ca : np.ndarray
+        DESCRIPTION: Array with gaps (possibly) filled.
+    error_estimates : np.ndarray|None
+        DESCRIPTION: Array of errors associated with the test points
+    error_estimates_percentage : np.ndarray|None
+        DESCRIPTION: Array of percentage errors associated with the test points.
+    error_rmse : float|None
+        DESCRIPTION: Root mean squared error of test points.
+    error_rmse_percentage : float|None
+        DESCRIPTION: Percentage root mean squared error of test points.
+    original_points : np.ndarray|None
+        DESCRIPTION: Array of the original time series points
+    imputed_points : np.ndarray|None
+        DESCRIPTION: Array of the imputed time series points.
+    fig_errors : matplotlit.figure|None
+        DESCRIPTION: Figure plotting the error metrics (accuracy of the gap filling imputation)
+    fig_time_series : matplotlit.figure|None
+        DESCRIPTION: Figure plotting the time series with imputed values.   
+    '''
+    #ensure we don't get rid of more than half the time series... may need to make this even more strict in the future.
+    if test_number > (len(x)/2):
+        test_number = int(np.floor((len(x)/2)))
+    
+    number_of_cissa_components = int(np.floor(L/2))
+        
+    if test_repeats == 0:
+        test_repeats = 1 #need at least one to quantify the error
+    if not estimate_error:
+        estimate_error=True #need to quantify the error
+        
+    
+    # 1. Validate inputs
+    x =  validate_input_parameters(x,L,extension_type,outliers,initial_guess,convergence)
+    
+    # 2. Initialise some variables
+    error_rmse, error_rmse_percentage, fig, ax, error_estimates, error_estimates_percentage, original_points, imputed_points = initialise_error_estimates(estimate_error)
+    k,l_t,g_t = initialise_outlier_type(outliers)
+    
+    
+    optimising_error_temp= {}
+    optimising_percentage_error_temp= {}
+    optimising_original_points_temp= {}
+    optimising_imputed_points_temp= {}
+    # 3. Begin outlier/missing data iterations
+    for testrepeats in range(0,test_repeats + 1):
+        mulist = []
+        if verbose: print(f'Step {testrepeats} of {test_repeats}')
+        if testrepeats == test_repeats:
+            test_number = 0
+            def compute_rms(arrays):
+                merged = np.concatenate(arrays)
+                return np.sqrt(np.mean(merged ** 2))
+            min_key = min(optimising_error_temp, key=lambda k: compute_rms(optimising_error_temp[k]))
+            min_number_of_groups_to_drop = min_key-1
+            
+            
+        # 3a. initial allocation 
+        x_old   = x.copy()
+        x_new   = x.copy()
+        x_ca    = x.copy()
+        x_final = x.copy()*0
+        for num_groups_to_drop in range(int(number_of_cissa_components)-1,min_number_of_groups_to_drop,-1):
+            if verbose: print(f'   Dropping {num_groups_to_drop} of {number_of_cissa_components}')
+            
+            x_new = x-x_final
+            x_old = x_new.copy()
+            # 3b. initialise iteration number and ensure if this is the last iteration we DO NOT remove any test points
+            
+            iter_i = 1
+            
+            # 3c. run through while loop.
+            out, mu, mumax, convergence_error = find_outliers(x_new,outliers,k,l_t,g_t,convergence,data_per_unit_period)
+            # print(mu,mumax,convergence_error)
+            mulist.append(f'{num_groups_to_drop}:{mu}-{mumax}')
+            if sum(out) == 0:
+                warnings.warn("WARNING: No gaps found in the data. Returning the original (unmodified) time-series.")
+                return x,None,None,None,None,None,None,None,None
+            
+            # 3c-i. Find outliers/missing data and convergence criterion
+            if num_groups_to_drop == int(number_of_cissa_components)-1:
+                x_final[out] = 0
+                # 3c-ii. Randomly select non-outlier points to evaluate error in gap filling
+                new_random_points, final_out  = remove_good_points_at_random(out,iter_i,test_number)
+                
+                
+
+            # 3c-iii. Add initial guess to outlier/nan/ gap points
+            x_new = initial_guess_for_gap_values(x_new,final_out,initial_guess,mu,mumax)
+
+            # 3c-iv. Iterate through
+            current_error = 1.1*convergence_error
+            while_iter = 0
+            while current_error>convergence_error:
+                x_new,x_old,temp_array = update_imputed_gap_values(x_new,L,extension_type,multi_thread_run,component_selection_method,
+                                                        num_groups_to_drop,None,final_out,use_cissa_overlap=use_cissa_overlap,drop_points_from=drop_points_from,
+                                                        alpha=None,
+                                                        K_surrogates=None,
+                                                        surrogates=None,
+                                                        seed=None,   
+                                                        sided_test=None,
+                                                        remove_trend=None,
+                                                        trend_always_significant=None,
+                                                        A_small_shuffle=None,
+                                                        generate_toeplitz_matrix=False)
+                current_error = np.max(np.abs(x_old-x_new))
+                # print(x_old[400],x_new[400],np.max(np.abs(x_old-x_new)),np.max(np.abs(x_old[final_out]-x_new[final_out])))
+                # print(x_old[final_out],x_new[final_out])
+                if verbose: print(f'iteration {while_iter}. ',current_error,' vs target error: ',convergence_error)
+                while_iter += 1
+                if while_iter > max_iter:
+                    warnings.warn(f'WARNING: We have exceeded the max number of iterations ({max_iter}) without convergence. Returning the original (unmodified) time-series.')
+                    return x,None,None,None,None,None,None, None, None
+
+            x_final += temp_array
+
+            if verbose: print(f'END iteration: {iter_i}, error: {np.max(np.abs(x_ca-x_new))} vs target error: {convergence_error}')    
+            
+            # % corrected series
+            x_ca = x_final.copy()
+            error_estimates_temp            = np.append(error_estimates,np.abs(x[new_random_points] - x_ca[new_random_points]))
+            error_estimates_percentage_temp = np.append(error_estimates_percentage,100*(np.abs(x[new_random_points] - x_ca[new_random_points])/(x[new_random_points])))
+            original_points_temp            = np.append(original_points,x[new_random_points])
+            imputed_points_temp             = np.append(imputed_points,x_ca[new_random_points]) 
+            optimising_error_temp.setdefault(num_groups_to_drop, []).append(error_estimates_temp)
+            optimising_percentage_error_temp.setdefault(num_groups_to_drop, []).append(error_estimates_percentage_temp)
+            optimising_original_points_temp.setdefault(num_groups_to_drop, []).append(original_points_temp)
+            optimising_imputed_points_temp.setdefault(num_groups_to_drop, []).append(imputed_points_temp)
+        
+        
+        #4. Update error estimation and points.
+    error_estimates            = np.concatenate(optimising_error_temp.get(min_key))
+    error_estimates_percentage = np.concatenate(optimising_percentage_error_temp.get(min_key))
+    original_points            = np.concatenate(optimising_original_points_temp.get(min_key))
+    imputed_points             = np.concatenate(optimising_imputed_points_temp.get(min_key))
+
+        
+    #5. Calculate RMSE and residuals    
+    error_rmse             = np.sqrt( (np.sum(error_estimates*error_estimates))/len(error_estimates)    )
+    error_rmse_percentage  = np.sqrt( (np.sum(error_estimates_percentage*error_estimates_percentage))/len(error_estimates_percentage)    )
+    residuals = original_points - imputed_points
+
+    #TO DO. INVESTIGATE CONFORMAL PREDICTION METHODS FOR ADDING PREDICTION INTERVALS
+    
+    #6 create figures
+    if estimate_error:
+        if len(imputed_points) > 0:
+            fig_errors = produce_error_comparison_figure(original_points,imputed_points,residuals,error_rmse,error_rmse_percentage)
+        else: 
+            fig_errors = None
+            warnings.warn("WARNING: No gaps found in the data.")
+    else: fig_errors = None
+    
+    #7 Make a figure here which plots the original time series and also the imputed values.    
+    fig_time_series = plot_time_series_with_imputed_values(t,x_ca,out,error_rmse,z_value)
+    
+    return x_ca,error_estimates,error_estimates_percentage,error_rmse,error_rmse_percentage,original_points,imputed_points, fig_errors,fig_time_series
+    
 ###############################################################################
 ###############################################################################
 def fill_timeseries_gaps(t:                          np.ndarray,
@@ -713,7 +984,7 @@ def fill_timeseries_gaps(t:                          np.ndarray,
                          outliers:                   list = ['nan_only',None],
                          estimate_error:             bool  = True,
                          test_number:                int = 10,
-                         test_repeats:               int = 1,
+                         test_repeats:               int = 5,
                          z_value:                    float = 1.96,  
                          component_selection_method: str = 'monte_carlo_significant_components',
                          eigenvalue_proportion:      float = 0.95,
@@ -875,7 +1146,7 @@ def fill_timeseries_gaps(t:                          np.ndarray,
             current_error = 1.1*convergence_error
             while_iter = 0
             while current_error>convergence_error:
-                x_new,x_old = update_imputed_gap_values(x_new,L,extension_type,multi_thread_run,component_selection_method,
+                x_new,x_old,temp_array = update_imputed_gap_values(x_new,L,extension_type,multi_thread_run,component_selection_method,
                                                         number_of_groups_to_drop,eigenvalue_proportion,final_out,use_cissa_overlap=use_cissa_overlap,drop_points_from=drop_points_from,
                                                         alpha=alpha,
                                                         K_surrogates=K_surrogates,
@@ -898,6 +1169,7 @@ def fill_timeseries_gaps(t:                          np.ndarray,
             if np.max(np.abs(x_ca-x_new))>convergence_error:
                 iter_i += 1
             else:
+                x_ca = x_new.copy()
                 iter_i = 0
             if verbose: print(f'iteration: {iter_i}, error: {np.max(np.abs(x_ca-x_new))} vs target error: {convergence_error}')    
             

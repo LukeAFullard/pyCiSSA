@@ -339,7 +339,7 @@ def drop_smallest_n_components(Z:                        np.ndarray,
     rc, sh, kg, psd_sh = group(Z,psd,myfrequencies)                    
     smallest_keys = find_smallest_values(sh, number_of_groups_to_drop)
     rckeys = [x for x in rc.keys() if x not in smallest_keys]
-    new_array = np.zeros(sh.shape)
+    new_array = np.zeros(rc[next(iter(rc))].shape)
     for key_i in rckeys: #iterate through the components to rebuild the signal
         new_array += rc[key_i]
         
