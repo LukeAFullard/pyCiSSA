@@ -547,6 +547,12 @@ def define_left_and_right_extension_lengths(extension_type: str,
     ----------
     extension_type : str
         DESCRIPTION: extension type for left and right ends of the time series 
+                        Options are: 
+                            'Mirror' - data at the start and end of the series is mirrored, x_{L+1} = X_{L-1}, 
+                            'NoExt' - no extension applied (Not recommended...), 
+                            'AR_LR' - autoregressive extension applied to start (L) and end (R) of x, 
+                            'AR_L' - autoregressive extension applied to start (L) of x, , 
+                            'AR_R - autoregressive extension applied to end (R) of x'
     T : int
         DESCRIPTION: Input array length
     L : int
@@ -825,6 +831,12 @@ def run_cissa(x: np.ndarray,
         DESCRIPTION: Input array
     extension_type : str
         DESCRIPTION: extension type for left and right ends of the time series 
+                    Options are: 
+                        'Mirror' - data at the start and end of the series is mirrored, x_{L+1} = X_{L-1}, 
+                        'NoExt' - no extension applied (Not recommended...), 
+                        'AR_LR' - autoregressive extension applied to start (L) and end (R) of x, 
+                        'AR_L' - autoregressive extension applied to start (L) of x, , 
+                        'AR_R - autoregressive extension applied to end (R) of x'
     L : int
         DESCRIPTION: CiSSA window length.
     multi_thread_run : bool, optional

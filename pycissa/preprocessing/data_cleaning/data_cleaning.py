@@ -20,7 +20,7 @@ def detect_censored_data(x: np.ndarray)-> bool:
 
     '''
     censoring = len([y[0] for y in str(x) if y[0] in ['>','<']])
-    return censoring > 0
+    return censoring > 0,censoring
 
 def detect_nan_data(x: np.ndarray)-> bool:
     '''

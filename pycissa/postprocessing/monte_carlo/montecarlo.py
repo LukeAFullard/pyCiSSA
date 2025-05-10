@@ -410,7 +410,7 @@ def run_monte_carlo_test(x:                        np.ndarray,
                         The default is 1.
     surrogates : str, optional
         DESCRIPTION: The type of surrogates to generate for the hypothesis test.
-                        One of "random_permutation", "small_shuffle", "ar1_fit", "coloured_noise".
+                        One of "random_permutation", "small_shuffle", "ar1_fit", "coloured_noise_single", "coloured_noise_segmented".
                         The default is 'random_permutation'.
     seed : int|None, optional
         DESCRIPTION: Random seed for reproducability. The default is None.

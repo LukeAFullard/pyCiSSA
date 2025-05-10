@@ -73,8 +73,13 @@ class Cissa:
         #----------------------------------------------------------------------
         #perform check for censored data
         from pycissa.preprocessing.data_cleaning.data_cleaning import detect_censored_data
-        self.censored = detect_censored_data(x)
-        if self.censored: warnings.warn("WARNING: Censored data detected. Please run pre_fix_censored_data before fitting.")
+        self.censored,num_censored = detect_censored_data(x)
+        if self.censored: 
+            warnings.warn("WARNING: Censored data detected. Please run pre_fix_censored_data before fitting.")
+            self.information_text += f'''
+            ------------------------------------------------------
+            {num_censored} censored data points found.
+            '''
         #----------------------------------------------------------------------    
         
         #----------------------------------------------------------------------
@@ -101,7 +106,7 @@ class Cissa:
         from pycissa.preprocessing.data_cleaning.data_cleaning import detect_censored_data,detect_nan_data
         self.x = self.x_raw
         self.t = self.t_raw
-        self.censored = detect_censored_data(self.x)  #if we restore the data we must check if the restored data is censored again...
+        self.censored,num_censored = detect_censored_data(self.x)  #if we restore the data we must check if the restored data is censored again...
         self.isnan = detect_nan_data(self.x)
     #--------------------------------------------------------------------------
     #--------------------------------------------------------------------------    
@@ -129,8 +134,14 @@ class Cissa:
             DESCRIPTION: CiSSA window length.
         extension_type : str
             DESCRIPTION: extension type for left and right ends of the time series. The default is AR_LR 
+                         Options are: 
+                             'Mirror' - data at the start and end of the series is mirrored, x_{L+1} = X_{L-1}, 
+                             'NoExt' - no extension applied (Not recommended...), 
+                             'AR_LR' - autoregressive extension applied to start (L) and end (R) of x, 
+                             'AR_L' - autoregressive extension applied to start (L) of x, , 
+                             'AR_R - autoregressive extension applied to end (R) of x'
         multi_thread_run : bool, optional
-            DESCRIPTION: Flag to indicate whether the diagonal averaging is performed on multiple cpu cores (True) or not. The default is True.
+            DESCRIPTION: Flag to indicate whether the diagonal averaging is performed on multiple threads (True) or not. The default is True.
         num_workers : int, optional
             DESCRIPTION: If using multi-threading, how many workers to use.
         generate_toeplitz_matrix : bool, optional
@@ -200,6 +211,9 @@ class Cissa:
         return self
      
     def plot_original_time_series(self):
+        '''
+        Helper function to plot the original time series
+        '''
         from pycissa.utilities.plotting import plot_time_series
         #----------------------------------------------------------------------
         #ensure data is not uncensored or nan
@@ -240,7 +254,7 @@ class Cissa:
         '''
         Function to fill in gaps (NaN values) and/or replace outliers in a timeseries via imputation.
         This is achieved by replacing gaps/outliers with an initial guess and then iteratively running the CiSSA (or overlap-CiSSA) method, keeping some (but not all) of the reconstructed series in each step of the algorithm, until convergence is achieved. 
-        Optionally, we evaluate the accuracy of the imputation by testing known points.
+        Optionally, we evaluate the accuracy of the imputation by testing known points (HIGHLY RECOMMENDED).
         
         -------------------------------------------------------------------------
         References:
@@ -504,7 +518,11 @@ class Cissa:
                                      hicensor_lower = hicensor_lower,
                                      hicensor_upper = hicensor_upper,)
             self.isnan = detect_nan_data(self.x)
-            self.censored = detect_censored_data(self.x)
+            self.censored,_ = detect_censored_data(self.x)
+            self.information_text += f'''
+            ------------------------------------------------------
+            Censored data replaced
+            '''
             
         else: warnings.warn("WARNING: No censored data detected. Returning unchanged data.")    
         
@@ -641,6 +659,12 @@ class Cissa:
           
         from pycissa.preprocessing.data_cleaning.data_cleaning import detect_nan_data
         self.isnan = detect_nan_data(self.x)
+        
+        self.information_text += f'''
+        ------------------------------------------------------
+        {self.added_times} number of samples missing in the time series to ensure it is approximately evenly spaced.
+        '''
+        
         return self
         
     #--------------------------------------------------------------------------
@@ -1809,7 +1833,6 @@ class Cissa:
      
     #List of stuff to add in here
     '''  
-    Iterative Component Gap Fill -  do we rest the x every time or start from last result?
     TESTING ALL FUNCTIONS!!!!!
     add print summary text
     function commenting!

@@ -22,6 +22,12 @@ def extend_series(x: np.ndarray,
         DESCRIPTION: Column vector with the original time series. Must be size (N,1) where N is the length of the vector.
     extension_type : str
         DESCRIPTION: extension type for left and right ends of the time series 
+                    Options are: 
+                        'Mirror' - data at the start and end of the series is mirrored, x_{L+1} = X_{L-1}, 
+                        'NoExt' - no extension applied (Not recommended...), 
+                        'AR_LR' - autoregressive extension applied to start (L) and end (R) of x, 
+                        'AR_L' - autoregressive extension applied to start (L) of x, , 
+                        'AR_R - autoregressive extension applied to end (R) of x'
     left_ext: int 
         DESCRIPTION: length of left time series extension
     right_ext: int 
