@@ -808,7 +808,7 @@ class Cissa:
         alphas : list, optional
             DESCRIPTION. A list of significance levels for the confidence interval. For example, alpha = [.05] returns a 95% confidence interval. The default is [0.05] + [x/20 for x in range(1,20)].
         timestep : float, optional
-            DESCRIPTION. Numeric timestep size in t_unit units. The default is 60*60*24.                 
+            DESCRIPTION. Numeric timestep size in timestep_unit or seconds if the time arrayis a date. The default is 60*60*24.                 
         timestep_unit : str, optional
             DESCRIPTION. Timestep unit (e.g. seconds, days, years). The default is 'day'.      
         include_data : bool, optional
@@ -1640,7 +1640,22 @@ class Cissa:
                                         )
 
             self.figures.get('cissa').update({'figure_detrended':fig})
-            
+        
+        #analyse the trend
+        _ = self.post_analyse_trend(
+                          trend_type     = kwargs.get('trend_type','rolling_OLS'),
+                          t_unit         = kwargs.get('t_unit',''),
+                          data_unit      = kwargs.get('data_unit',''),
+                          alphas         = kwargs.get('alphas',[x/20 for x in range(1,20)]),
+                          timestep       = kwargs.get('timestep',1),
+                          timestep_unit  = kwargs.get('timestep_unit',''),
+                          include_data   = kwargs.get('include_data',True),
+                          legend_loc     = kwargs.get('legend_loc',2),
+                          shade_area     = kwargs.get('shade_area',True),
+                          xaxis_rotation = kwargs.get('xaxis_rotation',270),
+                          window         = kwargs.get('window',12)
+                          )
+        
         if plt.get_fignums(): plt.close('all')    
         return self
         
@@ -1710,6 +1725,22 @@ class Cissa:
     def auto_cissa(self,
                    L: int = None,
                    **kwargs):
+        '''
+        AUTO-CISSA!
+
+        Parameters
+        ----------
+        L : int, optional
+            DESCRIPTION. The default is None.
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        '''
         #if L is not provided then we take L as (the floor of) half the series length
         if not L:
             L = int(np.floor(len(self.x)/2))
@@ -1827,7 +1858,84 @@ class Cissa:
         
     #--------------------------------------------------------------------------
     #-------------------------------------------------------------------------- 
+    def auto_cissa_classic(self,
+                   I:                         int|float|dict,
+                   L: int = None,
+                   season_length:             int = 1, 
+                   cycle_length:              list = [1.5,8], 
+                   **kwargs):
+        '''
+        This version of auto_cissa (classic) implements a version which is more faithful to the original Matlab version of Cissa by https://github.com/jbogalo/CiSSA.
 
+        Parameters
+        ----------
+        I : multiple
+            DESCRIPTION: 
+                 Four options:
+                 1) A positive integer. It is the number of data per year in
+                 time series. The function automatically computes the
+                 trend (oscillations with period greater than 8 years), the
+                 business cycle (oscillations with period between 8 & 1.5 years)
+                 and seasonality.
+                 2) A dictionary. Each value contains a numpy row vector with the desired
+                 values of k to be included in a group, k=0,1,2,...,L/2-1. The function
+                 computes the reconstructed components for these groups.
+                 3) A number between 0 & 1. This number represents the accumulated
+                 share of the psd achieved with the sum of the share associated to
+                 the largest eigenvalues. The function computes the original
+                 reconstructed time series as the sum of these components.
+                 4) A number between -1 & 0. It is a percentile (in positive) of
+                 the psd. The function computes the original reconstructed time
+                 series as the sum of the reconstructed componentes by frequency
+                 whose psd is greater that this percentile.
+        season_length : int, optional
+            DESCRIPTION: The default is 1. Only used for case 1. when I = A positive integer. Can be modified in the case that the season is not equal to the number of data per year. For example, if a "season" is 2 years, we enter I = 365 (for days in year) and 2 for season_length because the season is 365*2, or data_per_year*season_length.
+        cycle_length : list, optional
+            DESCRIPTION: The default is [1.5,8]. List of longer term cycle periods. Only used for case 1.
+        L : int, optional
+            DESCRIPTION. The default is None.
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        '''
+        #if L is not provided then we take L as (the floor of) half the series length
+        if not L:
+            L = int(np.floor(len(self.x)/2))
+            print(f"No input parameter L provided. Taking L as {L}.")
+        
+        #fix censoring and nan
+        print('Checking for censored or nan data...')
+        _ = self.auto_fix_censoring_nan(L,**kwargs)
+        
+        #plot original time series
+        _ = self.plot_original_time_series()
+        
+        #fit cissa
+        self.fit(L=L,
+                         extension_type   = kwargs.get('extension_type','AR_LR'),
+                         multi_thread_run = kwargs.get('multi_thread_run',True),
+                         num_workers      = kwargs.get('num_workers',2),
+                         generate_toeplitz_matrix = kwargs.get('generate_toeplitz_matrix',False),
+                         )
+        
+        #group components
+        self.post_group_manual(I=I,
+                               season_length  = kwargs.get('season_length',1),
+                               cycle_length   = kwargs.get('cycle_length',[1.5,8]),    
+                               include_noise  = kwargs.get('include_noise',True),
+                               )
+        
+        #reconstructed components
+        rc = self.results['cissa']['manual']['rc']
+        
+        self.x_trend = rc['trend']
+        self.x_seasonality = rc['seasonality']
+        self.x_long_term_cycle = rc['long term cycle']
+        self.x_noise = rc['noise']
 
 
      

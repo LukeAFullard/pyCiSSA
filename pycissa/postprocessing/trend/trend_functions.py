@@ -83,26 +83,26 @@ def plot_trend(Y:               np.ndarray,
     if type(t[-1]) in [np.datetime64,datetime.datetime]:
         t_unit = 'Date'
 
-    fig, ax = plt.subplots()
-    ax.scatter(t, slopes, c=my_colours, alpha=0.5)
+    fig, ax = plt.subplots(2)
+    ax[0].scatter(t, slopes, c=my_colours, alpha=0.5)
     if include_data:
-        ax.plot(t, Y,'k')
-    ax.grid(True)
+        ax[1].plot(t, Y,'k')
+    ax[0].grid(True)
     
     #add legend
     my_patches = []
     for increasing_text_i,colour_i in confidence_colour_map.items():
         my_patches.append(mpatches.Patch(color=colour_i, label=increasing_text_i))
-    ax.legend(handles=my_patches,title='Probability of an increasing trend', loc = legend_loc, bbox_to_anchor=(1.04, 1))
+    ax[0].legend(handles=my_patches,title='Probability of an increasing trend', loc = legend_loc, bbox_to_anchor=(1.04, 1))
     # fig.tight_layout()
 
     if shade_area:
         for increasing_text_i,colour_i in confidence_colour_map.items():
-            ax.fill_between(t, slopes, slopes*0, where=my_colours == colour_i, color=colour_i, alpha=0.3,
+            ax[0].fill_between(t, slopes, slopes*0, where=my_colours == colour_i, color=colour_i, alpha=0.3,
                      interpolate=True)
     plt.xticks(rotation=xaxis_rotation)
-    ax.set_xlabel(t_unit)
-    ax.set_ylabel("Trend (" + Y_unit + '/' + timestep_unit + ")") 
+    ax[1].set_xlabel(t_unit)
+    ax[0].set_ylabel("Trend (" + Y_unit + '/' + timestep_unit + ")") 
     # Get the current figure size in inches and DPI
     fig_width_inch, fig_height_inch = fig.get_size_inches()
     dpi = fig.get_dpi()
@@ -188,37 +188,42 @@ def plot_linear_trend(Y:               np.ndarray,
     if type(t[0]) in [np.ndarray]:
         t_ = np.array([dt[0].astype(datetime.datetime) for dt in t])
         
-    if type(t[-1]) in [datetime.datetime]:
+    if type(t_[-1]) in [datetime.datetime]:
         t_ = np.array([dt.timestamp() for dt in t])
         t_ -= t_[0]
         #divide by timestep
         t_ = t_/timestep
     
-    fig, ax = plt.subplots()
-    ax.scatter(t, slopes*t_+intercept, c=my_colours, alpha=0.5)
+    fig, ax = plt.subplots(2)
+    ax[0].scatter(t, slopes*t_+intercept, c=my_colours, alpha=0.5)
     if include_data:
-        ax.plot(t, Y,'k')
+        ax[1].plot(t, Y,'k')
         
     #add legend
     my_patches = []
     for increasing_text_i,colour_i in confidence_colour_map.items():
         if increasing_text_i == increasing_text[-1]:
             my_patches.append(mpatches.Patch(color=colour_i, label=increasing_text_i))
-    ax.legend(handles=my_patches,title='Probability of an increasing trend', loc = legend_loc, bbox_to_anchor=(1.04, 1))
+    ax[0].legend(handles=my_patches,title='Probability of an increasing trend', loc = legend_loc, bbox_to_anchor=(1.04, 1))
     
     # if shade_area:
     #     ax.fill_between(t, slopes*t_+intercept, t_*0, color=my_colours, alpha=0.3,
     #              interpolate=True)
     if shade_area:
         for increasing_text_i,colour_i in confidence_colour_map.items():
-            ax.fill_between(t, slopes*t_+intercept, t_*0, where=my_colours == colour_i, color=colour_i, alpha=0.3,
+            print(t)
+            print(t_)
+            print(slopes)
+            print(intercept)
+            print(colour_i)
+            ax[0].fill_between(t, slopes*t_+intercept, t_*0, where=my_colours == colour_i, color=colour_i, alpha=0.3,
                      interpolate=True)    
     
-    ax.grid(True)
+    ax[0].grid(True)
     fig.tight_layout()
     plt.xticks(rotation=xaxis_rotation)
-    ax.set_xlabel(t_unit)
-    ax.set_ylabel(Y_unit)
+    ax[1].set_xlabel(t_unit)
+    ax[0].set_ylabel(Y_unit)
     # Get the current figure size in inches and DPI
     fig_width_inch, fig_height_inch = fig.get_size_inches()
     dpi = fig.get_dpi()
@@ -354,7 +359,7 @@ def trend_rolling(Y:              np.ndarray,
     alphas : list, optional
         DESCRIPTION. A list of significance levels for the confidence interval. For example, alpha = [.05] returns a 95% confidence interval. The default is [0.05] + [x/20 for x in range(1,20)].
     timestep : float, optional
-        DESCRIPTION. Numeric timestep size in t_unit units. The default is 60*60*24.                 
+        DESCRIPTION. Numeric timestep size in timestep_unit or seconds if the time arrayis a date. The default is 60*60*24.                 
     timestep_unit : str, optional
         DESCRIPTION. Timestep unit (e.g. seconds, days, years). The default is 'day'.      
     include_data : bool, optional
@@ -384,7 +389,8 @@ def trend_rolling(Y:              np.ndarray,
     t_raw_ = copy.deepcopy(t)
     if type(t[-1]) in [np.datetime64]:
         #convert to datetime.datetime
-        t0 = t.astype(datetime.datetime)
+        # t0 = t.astype(datetime.datetime)
+        t0 = t.astype('datetime64[s]').tolist()
         t = np.array([np.int64(dt) for dt in t0])
         
     if type(t[0]) in [np.ndarray]:
@@ -463,7 +469,7 @@ def trend_linear(Y:              np.ndarray,
     alphas : list, optional
         DESCRIPTION. A list of significance levels for the confidence interval. For example, alpha = [.05] returns a 95% confidence interval. The default is [0.05] + [x/20 for x in range(1,20)].
     timestep : float, optional
-        DESCRIPTION. Numeric timestep size in t_unit units. The default is 60*60*24.                 
+        DESCRIPTION. Numeric timestep size in either timestep_unit or seconds if the time arrayis a date. The default is 60*60*24.                 
     timestep_unit : str, optional
         DESCRIPTION. Timestep unit (e.g. seconds, days, years). The default is 'day'.    
     include_data : bool, optional
@@ -492,7 +498,8 @@ def trend_linear(Y:              np.ndarray,
     t_raw_ = copy.deepcopy(t)
     if type(t[-1]) in [np.datetime64]:
         #convert to datetime.datetime
-        t = t.astype(datetime.datetime)
+        # t = t.astype(datetime.datetime)
+        t = t.astype('datetime64[s]').tolist()
         
     if type(t[0]) in [np.ndarray]:
         t = np.array([dt[0].astype(datetime.datetime) for dt in t])
@@ -513,7 +520,6 @@ def trend_linear(Y:              np.ndarray,
     
     #get Rsq
     rsq = results.rsquared
-    
     #get mse
     mse = results.mse_resid
     
