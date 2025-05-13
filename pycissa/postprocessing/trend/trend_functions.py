@@ -178,20 +178,20 @@ def plot_linear_trend(Y:               np.ndarray,
     
     
     my_colours = np.array([confidence_colour_map.get(x,'#FFFFFF') for x in increasing_text])
-    if type(t[-1]) in [np.datetime64,datetime.datetime]:
+    if isinstance(t[-1],(np.datetime64,datetime.datetime)):
         t_unit = 'Date'
     t_ = copy.deepcopy(t)
-    if type(t[-1]) in [np.datetime64]:
+    if isinstance(t[-1],np.datetime64):
         #convert to datetime.datetime
         t_ = t = [x.astype('datetime64[s]').astype(datetime.datetime) for x in t]
         
-    if type(t[-1]) in [datetime.date]:
+    if isinstance(t[-1],datetime.date):
         t = [datetime.datetime.combine(d, datetime.datetime.min.time()) for d in t]
         
-    if type(t[0]) in [np.ndarray]:
+    if isinstance(t[0],np.ndarray):
         t_ = np.array([dt[0].astype(datetime.datetime) for dt in t])
         
-    if type(t_[-1]) in [datetime.datetime]:
+    if isinstance(t_[-1],datetime.datetime):
         t_ = np.array([dt.timestamp() for dt in t])
         t_ -= t_[0]
         #divide by timestep
@@ -501,18 +501,18 @@ def trend_linear(Y:              np.ndarray,
 
     '''
     t_raw_ = copy.deepcopy(t)
-    if type(t[-1]) in [np.datetime64]:
+    if isinstance(t[-1],np.datetime64):
         #convert to datetime.datetime
         t = [x.astype('datetime64[s]').astype(datetime.datetime) for x in t]
  
-    if type(t[-1]) in [datetime.date]:
+    if isinstance(t[-1],datetime.date):
         t = [datetime.datetime.combine(d, datetime.datetime.min.time()) for d in t]
         
-    if type(t[0]) in [np.ndarray]:
+    if isinstance(t[0],np.ndarray):
         t = np.array([dt[0].astype(datetime.datetime) for dt in t])
 
     #    
-    if type(t[-1]) in [datetime.datetime]:
+    if isinstance(t[-1],datetime.datetime):
         t_ = np.array([dt.timestamp() for dt in t])
         t_ -= t_[0]
 
