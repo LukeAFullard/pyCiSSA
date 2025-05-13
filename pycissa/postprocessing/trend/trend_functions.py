@@ -80,7 +80,7 @@ def plot_trend(Y:               np.ndarray,
 
     my_colours = np.array([confidence_colour_map.get(x,'#FFFFFF') for x in increasing_text])
 
-    if type(t[-1]) in [np.datetime64,datetime.datetime]:
+    if isinstance(t[-1],(np.datetime64,datetime.datetime)):
         t_unit = 'Date'
 
     fig, ax = plt.subplots(2)
@@ -102,7 +102,8 @@ def plot_trend(Y:               np.ndarray,
                      interpolate=True)
     plt.xticks(rotation=xaxis_rotation)
     ax[1].set_xlabel(t_unit)
-    ax[0].set_ylabel("Trend (" + Y_unit + '/' + timestep_unit + ")") 
+    ax[0].set_ylabel("Trend Slope (" + Y_unit + '/' + timestep_unit + ")") 
+    ax[1].set_ylabel("Trend component (" + Y_unit +")") 
     # Get the current figure size in inches and DPI
     fig_width_inch, fig_height_inch = fig.get_size_inches()
     dpi = fig.get_dpi()
@@ -392,20 +393,26 @@ def trend_rolling(Y:              np.ndarray,
     '''
     
     t_raw_ = copy.deepcopy(t)
-    if type(t[-1]) in [np.datetime64]:
+    if isinstance(t[-1],np.datetime64):
         #convert to datetime.datetime
-        # t0 = t.astype(datetime.datetime)
-        t0 = t.astype('datetime64[s]').tolist()
-        t = np.array([np.int64(dt) for dt in t0])
+        t = [x.astype('datetime64[s]').astype(datetime.datetime) for x in t]
         
-    if type(t[0]) in [np.ndarray]:
+    if isinstance(t[-1],datetime.date):
+        t = [datetime.datetime.combine(d, datetime.datetime.min.time()) for d in t]
+    
+    if isinstance(t[0],np.ndarray):
         t = np.array([dt[0].astype(datetime.datetime) for dt in t])
         
     if type(t[-1]) in [datetime.datetime]:
         t_ = np.array([dt.timestamp() for dt in t])
         t_ -= t_[0]
         #divide by timestep
-        t_ = t_/timestep
+        if timestep is not None:
+            t_ = t_/timestep
+            if timestep_unit is None:
+                timestep_unit = str(timestep) + ' seconds'
+        else:
+            timestep_unit = 'second'
         t_ = sm.add_constant(t_, prepend=True) # add constant as the first column
     else:
         t_ = sm.add_constant(t, prepend=True) # add constant as the first column
