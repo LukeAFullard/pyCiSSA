@@ -785,8 +785,8 @@ class Cissa:
                       t_unit:            str = '',
                       data_unit:         str = '',
                       alphas:            list = [x/20 for x in range(1,20)],
-                      timestep:          float = 1,   
-                      timestep_unit:     str = '', 
+                      timestep:          float|None = None,   
+                      timestep_unit:     str = None, 
                       include_data:      bool = True, 
                       legend_loc:        int = 2, 
                       shade_area:        bool = True, 
@@ -808,9 +808,9 @@ class Cissa:
         alphas : list, optional
             DESCRIPTION. A list of significance levels for the confidence interval. For example, alpha = [.05] returns a 95% confidence interval. The default is [0.05] + [x/20 for x in range(1,20)].
         timestep : float, optional
-            DESCRIPTION. Numeric timestep size in timestep_unit or seconds if the time arrayis a date. The default is 60*60*24.                 
+            DESCRIPTION. Numeric timestep size in timestep_unit or seconds if the time arrayis a date. The default is None.                 
         timestep_unit : str, optional
-            DESCRIPTION. Timestep unit (e.g. seconds, days, years). The default is 'day'.      
+            DESCRIPTION. Timestep unit (e.g. seconds, days, years). The default is None.      
         include_data : bool, optional
             DESCRIPTION. Whether to include the original time-series in the plot or not. The default is True.
         legend_loc : int, optional
@@ -1647,8 +1647,8 @@ class Cissa:
                           t_unit         = kwargs.get('t_unit',''),
                           data_unit      = kwargs.get('data_unit',''),
                           alphas         = kwargs.get('alphas',[x/20 for x in range(1,20)]),
-                          timestep       = kwargs.get('timestep',1),
-                          timestep_unit  = kwargs.get('timestep_unit',''),
+                          timestep       = kwargs.get('timestep',None),
+                          timestep_unit  = kwargs.get('timestep_unit',None),
                           include_data   = kwargs.get('include_data',True),
                           legend_loc     = kwargs.get('legend_loc',2),
                           shade_area     = kwargs.get('shade_area',True),
@@ -1810,8 +1810,8 @@ class Cissa:
                           t_unit         = kwargs.get('t_unit',''),
                           data_unit      = kwargs.get('data_unit',''),
                           alphas         = kwargs.get('alphas',[x/20 for x in range(1,20)]),
-                          timestep       = kwargs.get('timestep',1),
-                          timestep_unit  = kwargs.get('timestep_unit',''),
+                          timestep       = kwargs.get('timestep',None),
+                          timestep_unit  = kwargs.get('timestep_unit',None),
                           include_data   = kwargs.get('include_data',True),
                           legend_loc     = kwargs.get('legend_loc',2),
                           shade_area     = kwargs.get('shade_area',True),
@@ -1931,16 +1931,20 @@ class Cissa:
         
         #reconstructed components
         rc = self.results['cissa']['manual']['rc']
-        
-        self.x_trend = rc['trend']
-        self.x_seasonality = rc['seasonality']
-        self.x_long_term_cycle = rc['long term cycle']
-        self.x_noise = rc['noise']
+        if type(I) == int or type(I) == float:
+            if ((I-np.floor(I))==0) & (I>0):
+                self.x_trend = rc['trend']
+                self.x_seasonality = rc['seasonality']
+                self.x_long_term_cycle = rc['long term cycle']
+                self.x_noise = rc['noise']
+        else:
+            self.x_reconstructed = rc
 
 
      
     #List of stuff to add in here
     '''  
+    Fix trend.
     TESTING ALL FUNCTIONS!!!!!
     add print summary text
     function commenting!

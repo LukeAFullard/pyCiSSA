@@ -183,7 +183,10 @@ def plot_linear_trend(Y:               np.ndarray,
     t_ = copy.deepcopy(t)
     if type(t[-1]) in [np.datetime64]:
         #convert to datetime.datetime
-        t_ = t.astype(datetime.datetime)
+        t_ = t = [x.astype('datetime64[s]').astype(datetime.datetime) for x in t]
+        
+    if type(t[-1]) in [datetime.date]:
+        t = [datetime.datetime.combine(d, datetime.datetime.min.time()) for d in t]
         
     if type(t[0]) in [np.ndarray]:
         t_ = np.array([dt[0].astype(datetime.datetime) for dt in t])
@@ -192,38 +195,44 @@ def plot_linear_trend(Y:               np.ndarray,
         t_ = np.array([dt.timestamp() for dt in t])
         t_ -= t_[0]
         #divide by timestep
-        t_ = t_/timestep
+        if timestep is not None:
+            t_ = t_/timestep
+            if timestep_unit is None:
+                timestep_unit = str(timestep) + ' seconds'
+        else:
+            timestep_unit = 'second'
     
-    fig, ax = plt.subplots(2)
-    ax[0].scatter(t, slopes*t_+intercept, c=my_colours, alpha=0.5)
+    fig, ax = plt.subplots()
+    ax.scatter(t, slopes*t_+intercept, c=my_colours, alpha=0.5)
     if include_data:
-        ax[1].plot(t, Y,'k')
+        ax.plot(t, Y,'k')
         
     #add legend
     my_patches = []
     for increasing_text_i,colour_i in confidence_colour_map.items():
         if increasing_text_i == increasing_text[-1]:
             my_patches.append(mpatches.Patch(color=colour_i, label=increasing_text_i))
-    ax[0].legend(handles=my_patches,title='Probability of an increasing trend', loc = legend_loc, bbox_to_anchor=(1.04, 1))
+    ax.legend(handles=my_patches,title='Probability of an increasing trend', loc = legend_loc, bbox_to_anchor=(1.04, 1))
     
     # if shade_area:
     #     ax.fill_between(t, slopes*t_+intercept, t_*0, color=my_colours, alpha=0.3,
     #              interpolate=True)
     if shade_area:
         for increasing_text_i,colour_i in confidence_colour_map.items():
-            print(t)
-            print(t_)
+            print('t: ',t[0],t[-1])
+            print('t_: ',t_[0],t_[-1])
             print(slopes)
             print(intercept)
+            print(slopes*t_[0]+intercept,slopes*t_[-1]+intercept)
             print(colour_i)
-            ax[0].fill_between(t, slopes*t_+intercept, t_*0, where=my_colours == colour_i, color=colour_i, alpha=0.3,
+            ax.fill_between(t, slopes*t_+intercept, t_*0, where=my_colours == colour_i, color=colour_i, alpha=0.3,
                      interpolate=True)    
     
-    ax[0].grid(True)
+    ax.grid(True)
     fig.tight_layout()
     plt.xticks(rotation=xaxis_rotation)
-    ax[1].set_xlabel(t_unit)
-    ax[0].set_ylabel(Y_unit)
+    ax.set_xlabel(t_unit)
+    ax.set_ylabel(Y_unit)
     # Get the current figure size in inches and DPI
     fig_width_inch, fig_height_inch = fig.get_size_inches()
     dpi = fig.get_dpi()
@@ -446,8 +455,8 @@ def trend_linear(Y:              np.ndarray,
                  t_unit:         str = '',
                  Y_unit:         str = '',
                  alphas:          list = [0.05] + [x/20 for x in range(1,20)],
-                 timestep:       float = 60*60*24,   
-                 timestep_unit:  str = 'day', 
+                 timestep:       float|None = None,   
+                 timestep_unit:  str|None = None, 
                  include_data:   bool = True, 
                  legend_loc:     int = 2, 
                  shade_area:     bool = False, 
@@ -498,8 +507,10 @@ def trend_linear(Y:              np.ndarray,
     t_raw_ = copy.deepcopy(t)
     if type(t[-1]) in [np.datetime64]:
         #convert to datetime.datetime
-        # t = t.astype(datetime.datetime)
-        t = t.astype('datetime64[s]').tolist()
+        t = [x.astype('datetime64[s]').astype(datetime.datetime) for x in t]
+ 
+    if type(t[-1]) in [datetime.date]:
+        t = [datetime.datetime.combine(d, datetime.datetime.min.time()) for d in t]
         
     if type(t[0]) in [np.ndarray]:
         t = np.array([dt[0].astype(datetime.datetime) for dt in t])
@@ -508,8 +519,15 @@ def trend_linear(Y:              np.ndarray,
     if type(t[-1]) in [datetime.datetime]:
         t_ = np.array([dt.timestamp() for dt in t])
         t_ -= t_[0]
+
         #divide by timestep
-        t_ = t_/timestep
+        if timestep is not None:
+            t_ = t_/timestep
+            if timestep_unit is None:
+                timestep_unit = str(timestep) + ' seconds'
+            
+        else:
+            timestep_unit = 'second'
         t_ = sm.add_constant(t_, prepend=True) # add constant as the first column
     else:
         t_ = sm.add_constant(t, prepend=True) # add constant as the first column
@@ -525,7 +543,8 @@ def trend_linear(Y:              np.ndarray,
     
     slope = results.params[1]
     intercept = results.params[0]
-    
+    # print(slope)
+    # print(intercept)
     #generate confidence bands for slope
     confidence_upper = {1 - ((a_i)/2 + (1-a_i)): results.conf_int(alpha=a_i)[1][1] for a_i in alphas}
     alphas = alphas[::-1]
