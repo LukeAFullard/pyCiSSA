@@ -219,12 +219,7 @@ def plot_linear_trend(Y:               np.ndarray,
     #              interpolate=True)
     if shade_area:
         for increasing_text_i,colour_i in confidence_colour_map.items():
-            print('t: ',t[0],t[-1])
-            print('t_: ',t_[0],t_[-1])
-            print(slopes)
-            print(intercept)
-            print(slopes*t_[0]+intercept,slopes*t_[-1]+intercept)
-            print(colour_i)
+
             ax.fill_between(t, slopes*t_+intercept, t_*0, where=my_colours == colour_i, color=colour_i, alpha=0.3,
                      interpolate=True)    
     
@@ -233,6 +228,7 @@ def plot_linear_trend(Y:               np.ndarray,
     plt.xticks(rotation=xaxis_rotation)
     ax.set_xlabel(t_unit)
     ax.set_ylabel(Y_unit)
+    ax.set_title(f"Trend slope = {slopes} {Y_unit}/{timestep_unit}")
     # Get the current figure size in inches and DPI
     fig_width_inch, fig_height_inch = fig.get_size_inches()
     dpi = fig.get_dpi()
@@ -529,7 +525,7 @@ def trend_linear(Y:              np.ndarray,
         else:
             timestep_unit = 'second'
         t_ = sm.add_constant(t_, prepend=True) # add constant as the first column
-    else:
+    else: #here we ASSUME a numerical array
         t_ = sm.add_constant(t, prepend=True) # add constant as the first column
         timestep_unit = t_unit
 
