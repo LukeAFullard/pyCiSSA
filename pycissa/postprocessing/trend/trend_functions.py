@@ -102,8 +102,8 @@ def plot_trend(Y:               np.ndarray,
                      interpolate=True)
     plt.xticks(rotation=xaxis_rotation)
     ax[1].set_xlabel(t_unit)
-    ax[0].set_ylabel("Trend Slope (" + Y_unit + '/' + timestep_unit + ")") 
-    ax[1].set_ylabel("Trend component (" + Y_unit +")") 
+    ax[0].set_ylabel("Trend Slope \n (" + Y_unit + '/' + timestep_unit + ")") 
+    ax[1].set_ylabel("Trend component \n (" + Y_unit +")") 
     # Get the current figure size in inches and DPI
     fig_width_inch, fig_height_inch = fig.get_size_inches()
     dpi = fig.get_dpi()
