@@ -25,7 +25,7 @@ Please check out the original Matlab verion written by the creator of the CiSSA 
 
 ## Features
 
-* **Gap Filling**: Robust handling of missing values before analysis.
+* **Gap Filling**: Robust handling of missing values before analysis .
 * **CiSSA Core**: Circulant Singular Spectrum Analysis for extracting oscillatory components, trend, noise.
 * **Time-Frequency Analysis**: Compute and visualize the instantaneous frequency and amplitude of reconstructed components.
 * **Trend Extraction**: Automated extraction of the trend component using CiSSA.
