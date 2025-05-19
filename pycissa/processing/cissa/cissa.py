@@ -1823,36 +1823,38 @@ class Cissa:
         print('Calculating time-series autocorrelation...')
         if not kwargs.get('noise_components'):
             kwargs.update({'monte_carlo_noise':True})
-        _ = self.plot_autocorrelation(
-                                    noise_components  = kwargs.get('noise_components',None),
-                                    monte_carlo_noise = kwargs.get('monte_carlo_noise',False),
-                                    acf_lags          = kwargs.get('acf_lags',None),
-                                    pacf_lags         = kwargs.get('pacf_lags',None),
-                                    alpha             = kwargs.get('alpha',0.05),
-                                    use_vlines        = kwargs.get('use_vlines',True),
-                                    adjusted          = kwargs.get('adjusted',False),
-                                    fft               = kwargs.get('fft',False),
-                                    missing           = kwargs.get('missing','none'),
-                                    zero              = kwargs.get('zero',True),
-                                    auto_ylims        = kwargs.get('auto_ylims',False),
-                                    bartlett_confint  = kwargs.get('bartlett_confint',True),
-                                    pacf_method       = kwargs.get('pacf_method','ywm'),
-                                    acf_color         = kwargs.get('acf_color','blue'),
-                                    pacf_color        = kwargs.get('pacf_color','blue'),
-                                    title_size        = kwargs.get('title_size',14),
-                                    label_size        = kwargs.get('label_size',12)
-                                    )
+        if kwargs.get('run_autocorrelation',True):    
+            _ = self.plot_autocorrelation(
+                                        noise_components  = kwargs.get('noise_components',None),
+                                        monte_carlo_noise = kwargs.get('monte_carlo_noise',False),
+                                        acf_lags          = kwargs.get('acf_lags',None),
+                                        pacf_lags         = kwargs.get('pacf_lags',None),
+                                        alpha             = kwargs.get('alpha',0.05),
+                                        use_vlines        = kwargs.get('use_vlines',True),
+                                        adjusted          = kwargs.get('adjusted',False),
+                                        fft               = kwargs.get('fft',False),
+                                        missing           = kwargs.get('missing','none'),
+                                        zero              = kwargs.get('zero',True),
+                                        auto_ylims        = kwargs.get('auto_ylims',False),
+                                        bartlett_confint  = kwargs.get('bartlett_confint',True),
+                                        pacf_method       = kwargs.get('pacf_method','ywm'),
+                                        acf_color         = kwargs.get('acf_color','blue'),
+                                        pacf_color        = kwargs.get('pacf_color','blue'),
+                                        title_size        = kwargs.get('title_size',14),
+                                        label_size        = kwargs.get('label_size',12)
+                                        )
         
         # run periodogram analysis
-        print("running peridogram analysis")
-        _ = self.post_periodogram_analysis(     
-                                      significant_components             = kwargs.get('significant_components',None),
-                                      monte_carlo_significant_components = kwargs.get('monte_carlo_significant_components',True),
-                                      alpha                              = kwargs.get('alpha',0.05),
-                                      max_breakpoints                    = kwargs.get('max_breakpoints',1),
-                                      n_boot                             = kwargs.get('n_boot',500),
-                                      hurst_window                       = kwargs.get('hurst_window',12),
-                                      )
+        if kwargs.get('run_periodogram',True):
+            print("running peridogram analysis")
+            _ = self.post_periodogram_analysis(     
+                                          significant_components             = kwargs.get('significant_components',None),
+                                          monte_carlo_significant_components = kwargs.get('monte_carlo_significant_components',True),
+                                          alpha                              = kwargs.get('alpha',0.05),
+                                          max_breakpoints                    = kwargs.get('max_breakpoints',1),
+                                          n_boot                             = kwargs.get('n_boot',500),
+                                          hurst_window                       = kwargs.get('hurst_window',12),
+                                          )
         print("Auto Cissa Complete!")
         return self
         

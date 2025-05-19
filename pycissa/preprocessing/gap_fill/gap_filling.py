@@ -869,6 +869,8 @@ def fill_timeseries_gaps_iterative_components(t:                          np.nda
                 return np.sqrt(np.mean(merged ** 2))
             min_key = min(optimising_error_temp, key=lambda k: compute_rms(optimising_error_temp[k]))
             min_number_of_groups_to_drop = min_key-1
+            if verbose:
+                print("Optimal number of components to drop: ",min_key)
             
             
         # 3a. initial allocation 

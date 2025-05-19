@@ -172,9 +172,13 @@ def robust_segmented_fit(my_freq         : list,
     #deal with lower frequency
     lower_freq = [x for x in my_freq if x<=break_point]
     lower_psd  = [x for x,y in zip(my_psd,my_freq) if y <= break_point]
+    if not len(lower_freq) > 3: #when fitting we want at least 3 points for a linear fit
+        return {}
     #deal with upper frequency
     upper_freq = [x for x in my_freq if x>=break_point]
     upper_psd  = [x for x,y in zip(my_psd,my_freq) if y >= break_point]
+    if not len(upper_freq) > 3: #when fitting we want at least 3 points for a linear fit
+        return {}
     
     lower_result = robust_linear_fit(lower_freq,lower_psd,alpha)
     upper_result = robust_linear_fit(upper_freq,upper_psd,alpha)
@@ -313,10 +317,10 @@ def robust_linear_fit(my_freq : list,
         DESCRIPTION. Dictionary of results.
 
     '''
+    from statsmodels.robust.scale import HuberScale
     # Convert frequency and PSD to log scale
     X = np.log10(my_freq)
     Y = np.log10(my_psd)
-
     # Add a constant term for the intercept
     X = sm.add_constant(X)
 
@@ -325,8 +329,7 @@ def robust_linear_fit(my_freq : list,
     # model = sm.RLM(Y, X, M=sm.robust.norms.MQuantileNorm(0.5,sm.robust.norms.LeastSquares()))
     # model = sm.RLM(Y, X, M=sm.robust.norms.MQuantileNorm(0.5,sm.robust.norms.HuberT()))
     # model = sm.RLM(Y, X, M=sm.robust.norms.LeastSquares())
-    
-    results = model.fit()
+    results = model.fit(scale_est=HuberScale())
 
     # Extract results
     robust_result = {
@@ -742,6 +745,8 @@ def generate_peridogram_plots(
     
     #get psd and frequencies of interest
     my_freq,my_psd_,removed_psd,removed_freq = make_periodogram_arrays(psd, frequencies,significant_components=significant_components)
+    if not len(my_freq) > 3:  #when fitting we want at least 3 points for a linear fit
+        return None, None, None, {}, {}, None,None,None, None,None,None,None,None
     normalisation_factor = 2 / (y.size * np.mean(y**2))
     my_psd = [x*normalisation_factor for x in my_psd_]
     
@@ -777,7 +782,10 @@ def generate_peridogram_plots(
         if segmented_slopes.get('breakpoint'):
             robust_segmented_results = robust_segmented_fit(my_freq,my_psd,segmented_slopes.get('breakpoint'),alpha)
             #plot robust segmented results
-            fig_robust_segmented = plot_robust_segmented_linear_fit(my_freq,my_psd, alpha,removed_psd,removed_freq,robust_segmented_results,**kwargs)
+            if not bool(robust_segmented_results):
+                fig_robust_segmented = None
+            else:
+                fig_robust_segmented = plot_robust_segmented_linear_fit(my_freq,my_psd, alpha,removed_psd,removed_freq,robust_segmented_results,**kwargs)
         else:
             segmented_slopes = {}
             robust_segmented_results = {}
