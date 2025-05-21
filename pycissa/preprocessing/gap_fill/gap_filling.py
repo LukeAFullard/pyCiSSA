@@ -1173,7 +1173,6 @@ def fill_timeseries_gaps(t:                          np.ndarray,
             else:
                 x_ca = x_new.copy()
                 iter_i = 0
-            if verbose: print(f'iteration: {iter_i}, error: {np.max(np.abs(x_ca-x_new))} vs target error: {convergence_error}')    
             
             # % corrected series
             x_ca = x_new.copy()
