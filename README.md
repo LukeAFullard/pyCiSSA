@@ -52,6 +52,16 @@ For ease of use, `pycissa` offers several automated functions that perform commo
     ```
 *   **Key Outputs:** The extracted trend is in `cissa_object.x_trend`, and the detrended series in `cissa_object.x_detrended`.
 
+### `auto_cissa_classic(I, L, **kwargs)`
+*   **Purpose:** Provides an automated CISSA analysis that closely follows the grouping strategy of an original MATLAB CISSA implementation. The `I` parameter is key for defining how components are grouped (e.g., based on data frequency for yearly seasonality, or custom index selections).
+*   **Example:**
+    ```python
+    # Assuming cissa_object and window_L are defined
+    # For monthly data, I=12 might be used for yearly cycle grouping
+    # cissa_object.auto_cissa_classic(I=12, L=window_L)
+    ```
+*   **Key Outputs:** Reconstructs components like `cissa_object.x_trend`, `cissa_object.x_seasonality` based on the `I` parameter. Results are also in `cissa_object.results['cissa']['manual']`.
+
 *Note: These functions often call `auto_fix_censoring_nan` internally to handle data cleaning if needed. You can pass further arguments via `**kwargs` to customize their behavior.*
 
 ## Examples
@@ -82,3 +92,13 @@ import numpy as np # Or pandas for data handling
 # You can now use methods like cissa_analyzer.auto_cissa(L=your_window_length)
 ```
 Make sure your `t_data` and `x_data` are 1D NumPy arrays or pandas Series.
+
+## References and Further Information
+
+For a deeper understanding of the Circulant Singular Spectrum Analysis (CISSA) methodology, please refer to the primary academic paper:
+
+*   Bógalo, J., Poncela, P., & Senra, E. (2021). "Circulant singular spectrum analysis: a new automated procedure for signal extraction". *Signal Processing, 179*, 107824.
+    *   DOI: [https://doi.org/10.1016/j.sigpro.2020.107824](https://doi.org/10.1016/j.sigpro.2020.107824)
+
+The original MATLAB implementation by the paper's authors can be found at:
+*   [https://github.com/jbogalo/CiSSA](https://github.com/jbogalo/CiSSA)
