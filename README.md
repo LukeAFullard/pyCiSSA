@@ -1,164 +1,104 @@
-## pyCiSSA
+# pycissa: Time Series Analysis with CISSA
 
-A Python package implementing Circulant Singular Spectrum Analysis (CiSSA) for time series decomposition, reconstruction, and significance testing. 
-Please check out the original Matlab verion written by the creator of the CiSSA method - https://github.com/jbogalo/CiSSA
+`pycissa` is a Python library for performing time series analysis, primarily utilizing **Circulant Singular Spectrum Analysis (CISSA)**.
 
----
-
-## Table of Contents
-
-1. [Features](#features)
-2. [Installation](#installation)
-3. [Quick Start](#quick-start)
-4. [Module Overview](#module-overview)
-
-   * [Preprocessing](#preprocessing)
-   * [Core CiSSA Algorithm](#core-cissa-algorithm)
-   * [Postprocessing](#postprocessing)
-5. [Examples](#examples)
-6. [API Reference](#api-reference)
-7. [Testing](#testing)
-8. [Contributing](#contributing)
-9. [License](#license)
-
----
-
-## Features
-
-* **Gap Filling**: Robust handling of missing values before analysis .
-* **CiSSA Core**: Circulant Singular Spectrum Analysis for extracting oscillatory components, trend, noise.
-* **Time-Frequency Analysis**: Compute and visualize the instantaneous frequency and amplitude of reconstructed components.
-* **Trend Extraction**: Automated extraction of the trend component using CiSSA.
-* **Noise Removal**: Automated noise removal using CiSSA.
-* **Monte Carlo Significance Testing**: Evaluate component significance with surrogate data tests.
-
----
+It is designed to help with tasks such as:
+*   Denoising time series data.
+*   Detrending series to analyze underlying patterns.
+*   Investigating seasonality.
 
 ## Installation
 
+Install `pycissa` using pip:
 ```bash
-# Clone the repository and switch to the pycissa_v2 branch
-git clone -b pycissa_v2 https://github.com/LukeAFullard/pyCiSSA.git
-cd pyCiSSA
-
-# Install dependencies via Poetry
-poetry install
+pip install pycissa
 ```
 
-> **Note**: Python 3.8+ is required. All dependencies are managed via `pyproject.toml`.
+## Key Features
 
----
+*   **Automated Time Series Decomposition:** Leverages CISSA to break down series into trend, periodic components, and noise.
+*   **Data Preprocessing:** Includes tools for handling missing data (NaNs) and censored data values.
+*   **Significance Testing:** Employs Monte Carlo surrogate methods to assess the statistical significance of identified time series components.
+*   **Trend & Seasonality Analysis:** Provides functionalities to extract, analyze, and visualize trends and seasonal patterns.
+*   **Analytical Plotting:** Generates various plots to help visualize time series components, spectral properties, and analysis results.
 
-## Quick Start
+## Automated Functions (`auto_*` methods)
+
+For ease of use, `pycissa` offers several automated functions that perform common analysis tasks with minimal configuration. The primary parameter you'll often specify is `L`, the window length for CISSA.
+
+### `auto_cissa(L, **kwargs)`
+*   **Purpose:** Performs a full, automated CISSA procedure, including data cleaning, component decomposition, significance testing, and grouping into trend, periodic, and noise components.
+*   **Example:**
+    ```python
+    # Assuming cissa_object is an initialized Cissa instance
+    # window_L = 60 # e.g., for 5 years of monthly data
+    # cissa_object.auto_cissa(L=window_L)
+    ```
+*   **Key Outputs:** Populates `cissa_object.x_trend`, `cissa_object.x_periodic`, `cissa_object.x_noise`, and generates various plots in `cissa_object.figures`. Detailed results are in `cissa_object.results`.
+
+### `auto_denoise(L, **kwargs)`
+*   **Purpose:** Automatically denoises the time series by separating the main signal (trend and significant periodicities) from noise.
+*   **Example:**
+    ```python
+    # cissa_object.auto_denoise(L=window_L)
+    ```
+*   **Key Outputs:** The denoised series is available in `cissa_object.x_denoised`. Also populates `x_trend`, `x_periodic`, and `x_noise`.
+
+### `auto_detrend(L, **kwargs)`
+*   **Purpose:** Automatically identifies and removes the trend component from the time series.
+*   **Example:**
+    ```python
+    # cissa_object.auto_detrend(L=window_L)
+    ```
+*   **Key Outputs:** The extracted trend is in `cissa_object.x_trend`, and the detrended series in `cissa_object.x_detrended`.
+
+### `auto_cissa_classic(I, L, **kwargs)`
+*   **Purpose:** Provides an automated CISSA analysis that closely follows the grouping strategy of an original MATLAB CISSA implementation. The `I` parameter is key for defining how components are grouped (e.g., based on data frequency for yearly seasonality, or custom index selections).
+*   **Example:**
+    ```python
+    # Assuming cissa_object and window_L are defined
+    # For monthly data, I=12 might be used for yearly cycle grouping
+    # cissa_object.auto_cissa_classic(I=12, L=window_L)
+    ```
+*   **Key Outputs:** Reconstructs components like `cissa_object.x_trend`, `cissa_object.x_seasonality` based on the `I` parameter. Results are also in `cissa_object.results['cissa']['manual']`.
+
+*Note: These functions often call `auto_fix_censoring_nan` internally to handle data cleaning if needed. You can pass further arguments via `**kwargs` to customize their behavior.*
+
+## Examples
+
+To see `pycissa` in action and get a practical understanding of its application, please refer to the Jupyter notebooks located in the `examples/` directory of this repository.
+
+*   **Primary Example:** The `examples/cissa/auto_cissa_examples/Auto-Cissa.ipynb` notebook is an excellent starting point. It demonstrates the use of the main `auto_cissa()` pipeline for a comprehensive analysis.
+
+*   **Other Examples:** You will also find other notebooks in subdirectories like `examples/cissa/auto_cissa_examples/` and `examples/cissa/gap_filling/` that showcase specific features such as automated denoising, detrending using different parameters, and techniques for handling missing data (gap filling).
+
+These examples provide code snippets and visualizations that you can adapt for your own time series analysis tasks.
+
+## Basic Usage Snippet
+
+Here's a quick look at how to import `pycissa` and initialize the main `Cissa` object with your data:
 
 ```python
-import numpy as np
 from pycissa import Cissa
+import numpy as np # Or pandas for data handling
 
-# 1. Prepare equally spaced time array `t` and data array `x`
-N = 500
-t = np.linspace(0, 1, N)
-x = np.sin(2 * np.pi * t) + 0.1 * np.random.randn(N)
+# Assuming you have your time series data:
+# t_data = np.array([...]) # Your time points (e.g., numerical indices or datetime objects)
+# x_data = np.array([...]) # Your data values
 
-# 2. Initialize Cissa
-#    The window length L critically influences frequency resolution and trend separation.
-cissa = Cissa(t, x)
+# Create a Cissa object
+# cissa_analyzer = Cissa(t=t_data, x=x_data)
 
-# 3. Run the full automated pipeline
-#    auto_cissa: fixes censoring/nan, plots original, fits CiSSA, Monte Carlo test, grouping, frequency-time, trend, autocorrelation, periodogram citeturn1file3
-cissa.auto_cissa(L=50, alpha=0.05, K_surrogates=5, surrogates='random_permutation')
-
-# 4. Retrieve results and figures
-#    - Numerical outputs in `cissa.results['cissa']`
-#    - Matplotlib figures in `cissa.figures['cissa']`
-print(cissa.figures['cissa'].keys())
-
-# 5. Use standalone auto-functions if required
-#    • auto_fix_censoring_nan: clean outliers & NaNs citeturn1file4
-#    • auto_denoise: denoise signal and plot citeturn1file0
-#    • auto_detrend: detrend signal and plot citeturn1file1
-cissa.auto_fix_censoring_nan(L=50)
-cissa.auto_denoise(L=50, plot_denoised=True)
-cissa.auto_detrend(L=50, plot_result=True)
+# You can now use methods like cissa_analyzer.auto_cissa(L=your_window_length)
 ```
+Make sure your `t_data` and `x_data` are 1D NumPy arrays or pandas Series.
 
-> **Note**: Always choose `L` (window length) between \~N/3 to N/2 as a starting point, then inspect the eigenvalue spectrum to fine-tune. The default behavior of auto-functions uses `L = floor(N/2)` if `L` is omitted. citeturn1file3
+## References and Further Information
 
----
+For a deeper understanding of the Circulant Singular Spectrum Analysis (CISSA) methodology, please refer to the primary academic paper:
 
-## Module Overview
+*   Bógalo, J., Poncela, P., & Senra, E. (2021). "Circulant singular spectrum analysis: a new automated procedure for signal extraction". *Signal Processing, 179*, 107824.
+    *   DOI: [https://doi.org/10.1016/j.sigpro.2020.107824](https://doi.org/10.1016/j.sigpro.2020.107824)
 
-This package exposes a single class, `Cissa`, which encapsulates the full CiSSA workflow:
-
-* **Initialization**
-
-  * `Cissa(t, x)`: Create an instance with time array `t` (1D, equally spaced) and data array `x` (same length).
-
-* **Automated Pipelines**
-
-  * `auto_fix_censoring_nan(L)`: Impute missing or censored values before analysis.
-  * `auto_cissa(L, alpha, K_surrogates, surrogates)`: Run the complete pipeline—cleaning, decomposition, Monte Carlo testing, grouping, time-frequency analysis, trend analysis, and diagnostic plots.
-  * `auto_denoise(L, plot_denoised)`: Perform denoising and plot the denoised series.
-  * `auto_detrend(L, plot_result)`: Perform detrending and plot the trend vs. detrended signal.
-
-* **Postprocessing Helpers**
-  These methods are available on the `Cissa` instance after `fit` or `auto_cissa`:
-
-  * `post_run_monte_carlo_analysis(alpha, K_surrogates, surrogates)`: Monte Carlo significance testing.
-  * `post_group_components(grouping_type)`: Automatic grouping of oscillatory components.
-  * `post_run_frequency_time_analysis()`: Instantaneous frequency and amplitude calculation.
-  * `post_analyse_trend()`: Trend extraction and smoothing.
-  * `plot_autocorrelation()`: Autocorrelation of residuals.
-  * `post_periodogram_analysis()`: Periodogram of the original and reconstructed signals.
-
----
-
-## API Reference
-
-Since `Cissa` encapsulates all functionality, the public API comprises:
-
-```python
-from pycissa import Cissa, __version__
-```
-
-* **Cissa**
-  Full-featured class for CiSSA analysis. See docstrings in `pycissa/processing/cissa/cissa.py` for complete parameter listings and return values.
-
-* ****version****
-  Package version string.
-
----
-
-Explore the `examples/` directory for Jupyter notebooks.
-
----
-
-## API Reference
-
-Detailed API documentation is available in the `docs/` folder (coming soon) or via the docstrings in each module.
-
----
-
-## Testing
-
-Run unit tests with pytest:
-
-```bash
-pytest tests/
-```
-
----
-
-## Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository and create a new branch.
-2. Follow the existing code style (PEP8) and add tests.
-3. Submit a pull request describing your changes.
-
----
-
-## License
-
-Distributed under the MIT License. See `LICENSE` for details.
+The original MATLAB implementation by the paper's authors can be found at:
+*   [https://github.com/jbogalo/CiSSA](https://github.com/jbogalo/CiSSA)
