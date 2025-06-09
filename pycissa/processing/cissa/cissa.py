@@ -179,6 +179,13 @@ class Cissa:
         if self.isnan: raise ValueError("WARNING: nan data detected. Please run pre_fill_gaps before fitting.")
         #----------------------------------------------------------------------
         
+        # Determine target dtype and convert self.x
+        target_dtype = np.float32 if self.use_32_bit else np.float64
+        try:
+            self.x = np.asarray(self.x, dtype=target_dtype)
+        except ValueError:
+            raise ValueError("All elements in the input array 'x' must be numeric or convertible to numeric type before fitting. Please check for non-numeric values.")
+
         #run cissa
         from pycissa.processing.matrix_operations.matrix_operations import run_cissa
         self.Z, self.psd = run_cissa(self.x,

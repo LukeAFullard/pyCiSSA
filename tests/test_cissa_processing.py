@@ -173,3 +173,29 @@ def test_cissa_init_empty_input_array_with_use_32_bit_false():
 
     assert x_processed.dtype == np.int32
     assert len(x_processed) == 0
+
+def test_fit_raises_error_on_non_numeric_when_use_32_bit_true():
+    """
+    Test that fit() raises ValueError if x contains non-numeric data when use_32_bit=True.
+    """
+    t_test = np.array([1, 2, 3, 4])
+    x_test_initial = np.array([1.0, "cannot_convert", 3.0], dtype=object)
+
+    cissa_instance = Cissa(t=t_test, x=x_test_initial, use_32_bit=True)
+
+    expected_error_msg = "All elements in the input array 'x' must be numeric or convertible to numeric type before fitting. Please check for non-numeric values."
+    with pytest.raises(ValueError, match=expected_error_msg):
+        cissa_instance.fit(L=2)
+
+def test_fit_raises_error_on_non_numeric_when_use_32_bit_false():
+    """
+    Test that fit() raises ValueError if x contains non-numeric data when use_32_bit=False.
+    """
+    t_test = np.array([1, 2, 3, 4])
+    x_test_initial = np.array([1.0, "still_cannot_convert", 3.0], dtype=object)
+
+    cissa_instance = Cissa(t=t_test, x=x_test_initial, use_32_bit=False)
+
+    expected_error_msg = "All elements in the input array 'x' must be numeric or convertible to numeric type before fitting. Please check for non-numeric values."
+    with pytest.raises(ValueError, match=expected_error_msg):
+        cissa_instance.fit(L=2)
