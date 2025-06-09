@@ -3,7 +3,7 @@ import warnings
 import matplotlib.pyplot as plt
 
 
-def initial_data_checks(t: np.ndarray, x: np.ndarray):
+def initial_data_checks(t: np.ndarray, x: np.ndarray, use_32_bit: bool):
     '''
     Data checks to ensure t,x are numpy arrays of the correct shape.
     Will try to convert to the correct shape if they are not
@@ -14,6 +14,8 @@ def initial_data_checks(t: np.ndarray, x: np.ndarray):
         DESCRIPTION: Array of input times.
     x : np.ndarray
         DESCRIPTION: Array of input data.
+    use_32_bit : bool
+        DESCRIPTION: Flag to indicate whether to convert x to float32.
 
     Raises
     ------
@@ -40,6 +42,21 @@ def initial_data_checks(t: np.ndarray, x: np.ndarray):
             x = x.reshape(len(x),)
         except:
             raise ValueError(f'Input "x" should be a column vector (i.e. only contain a single column). The size of x is ({myshape})')
+
+    if use_32_bit:
+        new_x = np.empty_like(x, dtype=object)
+        for i, val in enumerate(x):
+            try:
+                new_x[i] = np.float32(val)
+            except (ValueError, OverflowError):
+                new_x[i] = val
+        x = new_x
+        # Try to convert the entire array to float32 if all elements are numbers,
+        # otherwise leave as object type to accommodate mixed types.
+        try:
+            x = x.astype(np.float32)
+        except ValueError:
+            pass # x remains with dtype=object
             
     ######################################        
     #check t is a numpy array
@@ -62,10 +79,11 @@ class Cissa:
     '''
     Circulant Singular Spectrum Analysis: Data must be equally spaced!
     '''
-    def __init__(self, t: np.ndarray, x: np.ndarray):
+    def __init__(self, t: np.ndarray, x: np.ndarray, use_32_bit: bool = False):
         #----------------------------------------------------------------------
+        self.use_32_bit = use_32_bit # Assign attribute first
         # perform initial checks to ensure input variables are numpy arrays of the correct shape.
-        t,x = initial_data_checks(t,x)
+        t,x = initial_data_checks(t,x,self.use_32_bit)
         self.x_raw = x #array of corresponding data
         self.t_raw = t #array of corresponding data
         #----------------------------------------------------------------------
