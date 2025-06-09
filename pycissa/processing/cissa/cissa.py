@@ -414,6 +414,7 @@ class Cissa:
                                      drop_points_from=drop_points_from,
                                      max_iter=max_iter,
                                      verbose=verbose,
+                                     use_32_bit=self.use_32_bit,
                                      )
         else:
             from pycissa.preprocessing.gap_fill.gap_filling import fill_timeseries_gaps
@@ -449,7 +450,8 @@ class Cissa:
                                      remove_trend=remove_trend,
                                      trend_always_significant=trend_always_significant,
                                      A_small_shuffle=A_small_shuffle,
-                                     generate_toeplitz_matrix=generate_toeplitz_matrix,)
+                                     generate_toeplitz_matrix=generate_toeplitz_matrix,
+                                     use_32_bit=self.use_32_bit,)
         
         self.x = x_ca.reshape(len(x_ca),)
         self.gap_fill_error_estimates            = error_estimates

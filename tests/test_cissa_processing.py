@@ -187,6 +187,50 @@ def test_fit_raises_error_on_non_numeric_when_use_32_bit_true():
     with pytest.raises(ValueError, match=expected_error_msg):
         cissa_instance.fit(L=2)
 
+def test_pre_fill_gaps_use_32_bit_true():
+    """
+    Test pre_fill_gaps with use_32_bit=True ensures self.x becomes float32.
+    """
+    t_val = np.arange(5, dtype=np.float64) # Ensure t is also float for consistency if it matters
+    # Initial x is float64, Cissa init with use_32_bit=True will convert it to float32
+    x_val = np.array([1.0, 2.0, np.nan, 4.0, np.nan], dtype=np.float64)
+
+    cissa_instance = Cissa(t=t_val, x=x_val, use_32_bit=True)
+    # After Cissa init, if x_val was purely numeric, it should already be float32
+    # If x_val had NaNs that made it object type, initial_data_checks handles it.
+    # Let's confirm initial state of cissa_instance.x
+    if cissa_instance.x.dtype == object: # If NaNs made it object
+        # Check that numeric parts are float32
+        assert isinstance(cissa_instance.x[0], np.float32)
+    else: # If it became float32 directly (e.g. if np.nan can exist in a float32 array)
+        assert cissa_instance.x.dtype == np.float32
+
+    # Call pre_fill_gaps, simplifying parameters
+    # L must be > 1 and typically <= N/2. For N=5, L=2 is fine.
+    # Using component_selection_method='drop_smallest_n' to avoid Monte Carlo.
+    # estimate_error=False to avoid extra loops/file reads if any.
+    cissa_instance.pre_fill_gaps(L=2, estimate_error=False, component_selection_method='drop_smallest_n', test_repeats=0)
+
+    assert cissa_instance.x.dtype == np.float32, "cissa_instance.x should be float32 after pre_fill_gaps with use_32_bit=True"
+    assert not np.isnan(cissa_instance.x).any(), "NaNs should be filled in cissa_instance.x"
+
+def test_pre_fill_gaps_use_32_bit_false():
+    """
+    Test pre_fill_gaps with use_32_bit=False ensures self.x remains float64.
+    """
+    t_val = np.arange(5, dtype=np.float64)
+    x_val = np.array([1.0, 2.0, np.nan, 4.0, np.nan], dtype=np.float64)
+
+    cissa_instance = Cissa(t=t_val, x=x_val, use_32_bit=False)
+    # With use_32_bit=False, x should remain float64 or become object if it had mixed types not convertible initially.
+    # For np.array([1.0, np.nan], dtype=np.float64), dtype is float64.
+    assert cissa_instance.x.dtype == np.float64
+
+    cissa_instance.pre_fill_gaps(L=2, estimate_error=False, component_selection_method='drop_smallest_n', test_repeats=0)
+
+    assert cissa_instance.x.dtype == np.float64, "cissa_instance.x should be float64 after pre_fill_gaps with use_32_bit=False"
+    assert not np.isnan(cissa_instance.x).any(), "NaNs should be filled in cissa_instance.x"
+
 def test_fit_raises_error_on_non_numeric_when_use_32_bit_false():
     """
     Test that fit() raises ValueError if x contains non-numeric data when use_32_bit=False.
