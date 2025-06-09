@@ -250,7 +250,9 @@ def calculate_elementary_matrix(L:int)-> np.ndarray:
         U[:,k] = new_col_1
         U[:,L+2-(k+1)-1] = new_col_2
     U = np.real(U)
-    del u_k,new_col_1,new_col_2
+    # Only delete if the loop actually ran and defined these variables
+    if int(nf2+1) > 1:
+        del u_k,new_col_1,new_col_2
       
     if not np.mod(L,2):
         U[:,int(nft-1)] = np.real(U[:,int(nft-1)]);

@@ -413,7 +413,8 @@ def initial_guess_for_gap_values(x_new:         np.ndarray,
                                  final_out:     np.ndarray,
                                  initial_guess: list,
                                  mu:         float,
-                                 mumax:            float
+                                 mumax:            float,
+                                 use_32_bit: bool  # Added
                                  ) -> np.ndarray:
     '''
     Function to add initial guess/value for outliers/nan/gap data
@@ -460,6 +461,19 @@ def initial_guess_for_gap_values(x_new:         np.ndarray,
                 previous_val.append(x_new[previous_good_index])
         previous_val = [x.item()*initial_guess[1] for x in previous_val]  
         x_new[final_out] = previous_val
+
+    target_dtype = np.float32 if use_32_bit else np.float64
+    try:
+        # Attempt to convert the entire array. This assumes that values put into x_new
+        # (like from previous_val) are numeric or can be converted.
+        x_new = np.asarray(x_new, dtype=target_dtype)
+    except ValueError:
+        # If conversion fails, it implies some non-numeric data might still be present
+        # or was introduced, which should not happen if prior stages cleaned data properly.
+        raise ValueError(
+            f"Could not convert the initial guess array to the required numeric type ({target_dtype}). "
+            "Ensure all data is numeric."
+        )
         
     return x_new     
 
@@ -728,6 +742,7 @@ def fill_timeseries_gaps_iterative_components(t:                          np.nda
                          drop_points_from:           str = 'Left',
                          max_iter:                   int = 100,
                          verbose:                    bool = False,
+                          use_32_bit:                 bool = False,
                          **kwargs,
                          ):
     '''
@@ -904,7 +919,7 @@ def fill_timeseries_gaps_iterative_components(t:                          np.nda
                 
 
             # 3c-iii. Add initial guess to outlier/nan/ gap points
-            x_new = initial_guess_for_gap_values(x_new,final_out,initial_guess,mu,mumax)
+            x_new = initial_guess_for_gap_values(x_new,final_out,initial_guess,mu,mumax,use_32_bit)
 
             # 3c-iv. Iterate through
             current_error = 1.1*convergence_error
@@ -997,6 +1012,7 @@ def fill_timeseries_gaps(t:                          np.ndarray,
                          max_iter:                   int = 50,
                          verbose:                    bool = False,
                          alpha:                      float = 0.05,
+                          use_32_bit:                 bool = False,
                          **kwargs,
                          ):
     '''
@@ -1142,7 +1158,7 @@ def fill_timeseries_gaps(t:                          np.ndarray,
             new_random_points, final_out  = remove_good_points_at_random(out,iter_i,test_number)
 
             # 3c-iii. Add initial guess to outlier/nan/ gap points
-            x_new = initial_guess_for_gap_values(x_new,final_out,initial_guess,mu,mumax)
+            x_new = initial_guess_for_gap_values(x_new,final_out,initial_guess,mu,mumax,use_32_bit)
             
             # 3c-iv. Iterate through
             current_error = 1.1*convergence_error
