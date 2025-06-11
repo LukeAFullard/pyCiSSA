@@ -73,6 +73,22 @@ def initial_data_checks(t: np.ndarray, x: np.ndarray, use_32_bit: bool):
         except:
             raise ValueError(f'Input "t" should be a column vector (i.e. only contain a single column). The size of t is ({myshape})')
 
+    # Handle non-numeric t arrays and datetime64 conversion
+    if not all(isinstance(item, (int, float, np.integer, np.floating)) for item in t):
+        if t.dtype != np.dtype('datetime64[ns]'):
+            try:
+                t = t.astype('datetime64[ns]')
+            except ValueError:
+                raise ValueError("Time vector t could not be converted to datetime. Please ensure it is in a format convertible to datetime64.")
+
+        if t.dtype == np.dtype('datetime64[ns]'):
+            # Check if sorted in ascending order
+            if not all(t[i] <= t[i+1] for i in range(len(t)-1)):
+                # Find the first unsorted element for a more informative message
+                for i in range(len(t) - 1):
+                    if t[i+1] < t[i]:
+                        raise ValueError(f"Time vector t is not sorted in ascending order. Element {t[i+1]} at index {i+1} is less than preceding element {t[i]} at index {i}.")
+
     # Type Check for t
     unique_types = set(type(item) for item in t)
     if len(unique_types) > 1:
