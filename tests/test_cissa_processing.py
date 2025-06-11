@@ -152,6 +152,72 @@ class TestInitialDataChecks:
         assert "Time vector t is not sorted in ascending order. Element 2.0 at index 2 is less than preceding element 3.0 at index 1." in str(excinfo.value) or \
                "Time vector t is not sorted in ascending order. Element 2 at index 2 is less than preceding element 3.0 at index 1." in str(excinfo.value)
 
+    def test_initial_data_checks_datetime(self):
+        """
+        Tests for datetime64 handling in initial_data_checks.
+        """
+        use_32_bit = False # Not relevant for these t-focused tests
+
+        # Test case 1: Successful conversion of list of date strings
+        t_str_list = ['2023-01-01', '2023-01-02', '2023-01-03']
+        x_dummy1 = np.array([1, 2, 3])
+        t_processed, _ = initial_data_checks(np.array(t_str_list), x_dummy1, use_32_bit)
+        assert t_processed.dtype == np.dtype('datetime64[ns]')
+        expected_dt1 = np.array(['2023-01-01', '2023-01-02', '2023-01-03'], dtype='datetime64[ns]')
+        assert np.array_equal(t_processed, expected_dt1)
+
+        # Test case 2: Successful handling of an already sorted datetime64 array
+        t_dt64_sorted = np.array(['2023-01-01', '2023-01-02', '2023-01-03'], dtype='datetime64[ns]')
+        x_dummy2 = np.array([1, 2, 3])
+        t_processed, _ = initial_data_checks(t_dt64_sorted, x_dummy2, use_32_bit)
+        assert t_processed.dtype == np.dtype('datetime64[ns]')
+        assert np.array_equal(t_processed, t_dt64_sorted)
+
+        # Test case 3: ValueError for an unsorted datetime64 array
+        t_dt64_unsorted = np.array(['2023-01-01', '2023-01-03', '2023-01-02'], dtype='datetime64[ns]')
+        x_dummy3 = np.array([1, 2, 3])
+        with pytest.raises(ValueError, match="Time vector t is not sorted in ascending order. Element 2023-01-02T00:00:00.000000000 at index 2 is less than preceding element 2023-01-03T00:00:00.000000000 at index 1."):
+            initial_data_checks(t_dt64_unsorted, x_dummy3, use_32_bit)
+
+        # Test case 4: ValueError for a list of strings that cannot be converted
+        t_str_list_invalid = ['2023-01-01', 'not-a-date', '2023-01-03']
+        x_dummy4 = np.array([1, 2, 3])
+        with pytest.raises(ValueError, match="Time vector t could not be converted to datetime. Please ensure it is in a format convertible to datetime64."):
+            initial_data_checks(np.array(t_str_list_invalid), x_dummy4, use_32_bit)
+
+        # Test case 5: Numeric arrays are still handled correctly (sorted)
+        t_numeric_sorted = np.array([1, 2, 3])
+        x_dummy5 = np.array([1, 2, 3])
+        t_processed_num_sorted, _ = initial_data_checks(t_numeric_sorted, x_dummy5, use_32_bit)
+        assert np.array_equal(t_processed_num_sorted, t_numeric_sorted)
+
+        # Test case 6: Numeric arrays are still handled correctly (unsorted)
+        t_numeric_unsorted = np.array([1, 3, 2])
+        x_dummy6 = np.array([1, 2, 3])
+        with pytest.raises(ValueError, match="Time vector t is not sorted in ascending order. Element 2 at index 2 is less than preceding element 3 at index 1."):
+            initial_data_checks(t_numeric_unsorted, x_dummy6, use_32_bit)
+
+        # Test case 7: Single element datetime string
+        t_str_single = ['2023-01-01']
+        x_dummy7 = np.array([1])
+        t_processed_single, _ = initial_data_checks(np.array(t_str_single), x_dummy7, use_32_bit)
+        assert t_processed_single.dtype == np.dtype('datetime64[ns]')
+        expected_dt_single = np.array(['2023-01-01'], dtype='datetime64[ns]')
+        assert np.array_equal(t_processed_single, expected_dt_single)
+
+        # Test case 8: Empty list (should not fail, handled by earlier checks or convert to empty datetime64)
+        t_empty_list = []
+        x_dummy8 = np.array([])
+        # initial_data_checks will convert t to np.array([]) first.
+        # The new logic is after `if not all(isinstance(item, (int, float, np.integer, np.floating)) for item in t):`
+        # `all` on an empty sequence is True, so it skips the datetime conversion block.
+        # This means it relies on previous numeric checks or passes through if empty.
+        t_processed_empty, _ = initial_data_checks(np.array(t_empty_list), x_dummy8, use_32_bit)
+        assert len(t_processed_empty) == 0
+        # Depending on how np.array([]) is handled before datetime checks, its dtype might vary.
+        # If it's float64 by default for empty numeric, it passes. If object, it might try conversion.
+        # Let's assume it remains a simple empty array that passes existing numeric checks.
+        # The key is it doesn't raise an error related to datetime processing.
 
 # Existing tests below, ensure they are not overwritten if this is a partial update
 # For this task, we are overwriting the whole file to include the new class at the top.
