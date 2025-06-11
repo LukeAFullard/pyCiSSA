@@ -1,6 +1,160 @@
 import numpy as np
 import pytest
-from pycissa.processing.cissa.cissa import Cissa
+from pycissa.processing.cissa.cissa import Cissa, initial_data_checks
+
+class TestInitialDataChecks:
+    # Minimal valid x and use_32_bit for most tests
+    default_x = np.array([0.0])
+    default_use_32_bit = False
+
+    def _get_x_for_t(self, t_array):
+        if t_array.ndim == 0 or len(t_array) == 0: # scalar or empty
+            return np.array([])
+        return np.array([0.0] * len(t_array))
+
+    # 1. Type Check Tests
+    def test_type_check_mixed_non_numeric(self):
+        t_test = np.array([1, 2, 'a', 3], dtype=object)
+        x_test = self._get_x_for_t(t_test)
+        with pytest.raises(TypeError) as excinfo:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        assert "Time vector t contains mixed data types" in str(excinfo.value)
+        assert "<class 'str'>" in str(excinfo.value)
+        assert "<class 'int'>" in str(excinfo.value)
+
+
+    def test_type_check_mixed_numeric(self):
+        t_test = np.array([1, 2.0, 3, 4.5]) # numpy will make this float64
+        x_test = self._get_x_for_t(t_test)
+        try:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        except TypeError:
+            pytest.fail("TypeError raised unexpectedly for mixed numeric types.")
+
+    def test_type_check_all_int(self):
+        t_test = np.array([1, 2, 3])
+        x_test = self._get_x_for_t(t_test)
+        try:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        except TypeError:
+            pytest.fail("TypeError raised unexpectedly for all-int types.")
+
+    def test_type_check_all_float(self):
+        t_test = np.array([1.0, 2.0, 3.0])
+        x_test = self._get_x_for_t(t_test)
+        try:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        except TypeError:
+            pytest.fail("TypeError raised unexpectedly for all-float types.")
+
+    def test_type_check_empty(self):
+        t_test = np.array([])
+        x_test = self._get_x_for_t(t_test)
+        try:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        except (TypeError, ValueError):
+            pytest.fail("Error raised unexpectedly for empty t array.")
+
+    def test_type_check_single_element_numeric(self):
+        t_test = np.array([1])
+        x_test = self._get_x_for_t(t_test)
+        try:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        except (TypeError, ValueError):
+            pytest.fail("Error raised unexpectedly for single numeric element t array.")
+
+    def test_type_check_single_element_non_numeric(self):
+        t_test = np.array(['a'], dtype=object)
+        x_test = self._get_x_for_t(t_test)
+        try:
+            # This should pass type check as there's only one type, even if non-numeric.
+            # Order check won't run if not numeric.
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        except (TypeError, ValueError):
+            pytest.fail("Error raised unexpectedly for single non-numeric element t array.")
+
+    # 2. Order Check Tests
+    def test_order_check_correctly_sorted(self):
+        t_test = np.array([1, 2, 3, 4])
+        x_test = self._get_x_for_t(t_test)
+        try:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        except ValueError:
+            pytest.fail("ValueError raised unexpectedly for correctly sorted array.")
+
+    def test_order_check_unsorted_middle(self):
+        t_test = np.array([1, 3, 2, 4])
+        x_test = self._get_x_for_t(t_test)
+        with pytest.raises(ValueError) as excinfo:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        assert "Time vector t is not sorted in ascending order. Element 2 at index 2 is less than preceding element 3 at index 1." in str(excinfo.value)
+
+    def test_order_check_unsorted_start(self):
+        t_test = np.array([3, 1, 2, 4])
+        x_test = self._get_x_for_t(t_test)
+        with pytest.raises(ValueError) as excinfo:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        assert "Time vector t is not sorted in ascending order. Element 1 at index 1 is less than preceding element 3 at index 0." in str(excinfo.value)
+
+    def test_order_check_unsorted_end(self):
+        t_test = np.array([1, 2, 4, 3])
+        x_test = self._get_x_for_t(t_test)
+        with pytest.raises(ValueError) as excinfo:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        assert "Time vector t is not sorted in ascending order. Element 3 at index 3 is less than preceding element 4 at index 2." in str(excinfo.value)
+
+    def test_order_check_reverse_sorted(self):
+        t_test = np.array([4, 3, 2, 1])
+        x_test = self._get_x_for_t(t_test)
+        with pytest.raises(ValueError) as excinfo:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        assert "Time vector t is not sorted in ascending order. Element 3 at index 1 is less than preceding element 4 at index 0." in str(excinfo.value)
+
+    def test_order_check_empty_array(self):
+        t_test = np.array([])
+        x_test = self._get_x_for_t(t_test)
+        try:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        except ValueError:
+            pytest.fail("ValueError raised unexpectedly for empty array (order check).")
+
+    def test_order_check_single_element_array(self):
+        t_test = np.array([10])
+        x_test = self._get_x_for_t(t_test)
+        try:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        except ValueError:
+            pytest.fail("ValueError raised unexpectedly for single element array (order check).")
+
+    def test_order_check_all_equal_elements(self):
+        t_test = np.array([2, 2, 2, 2])
+        x_test = self._get_x_for_t(t_test)
+        try:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        except ValueError:
+            pytest.fail("ValueError raised unexpectedly for array with all equal elements.")
+
+    def test_order_check_mixed_numeric_sorted(self):
+        t_test = np.array([1, 2.0, 3, 4.5])
+        x_test = self._get_x_for_t(t_test)
+        try:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        except ValueError:
+            pytest.fail("ValueError raised unexpectedly for sorted mixed numeric array.")
+
+    def test_order_check_mixed_numeric_unsorted(self):
+        t_test = np.array([1, 3.0, 2, 4.5]) # Numpy makes this [1., 3., 2., 4.5]
+        x_test = self._get_x_for_t(t_test)
+        with pytest.raises(ValueError) as excinfo:
+            initial_data_checks(t_test, x_test, self.default_use_32_bit)
+        # Original test case was 3.0 and 2. Numpy array becomes [1., 3., 2., 4.5]
+        # So element 2 at index 2 is less than preceding element 3.0 at index 1.
+        assert "Time vector t is not sorted in ascending order. Element 2.0 at index 2 is less than preceding element 3.0 at index 1." in str(excinfo.value) or \
+               "Time vector t is not sorted in ascending order. Element 2 at index 2 is less than preceding element 3.0 at index 1." in str(excinfo.value)
+
+
+# Existing tests below, ensure they are not overwritten if this is a partial update
+# For this task, we are overwriting the whole file to include the new class at the top.
 
 def test_cissa_init_use_32_bit_true_conversion():
     """
@@ -151,7 +305,6 @@ def test_cissa_init_empty_input_array_with_use_32_bit_true():
     x_processed = cissa_instance.x
 
     # np.array([]).astype(np.float32) results in dtype float32.
-    assert x_processed.dtype == np.float32 or x_processed.dtype == np.float64
     # An empty array when use_32_bit is true, after passing through np.empty_like(x, dtype=object)
     # and then x.astype(np.float32) might end up float64 if x was initially float64 (empty_like preserves type for data region)
     # or float32. Let's be more specific: initial_data_checks gets x = np.array([]).
@@ -178,41 +331,39 @@ def test_fit_raises_error_on_non_numeric_when_use_32_bit_true():
     """
     Test that fit() raises ValueError if x contains non-numeric data when use_32_bit=True.
     """
-    t_test = np.array([1, 2, 3, 4])
+    t_test = np.array([1, 2, 3]) # Adjusted length to match x_test_initial for initial_data_checks
     x_test_initial = np.array([1.0, "cannot_convert", 3.0], dtype=object)
 
+    # initial_data_checks is called during Cissa initialization.
+    # The error related to x being non-numeric for fit is actually checked in initial_data_checks if use_32_bit=True
+    # tries to convert to float32. If it remains object, fit() itself will try conversion.
+
     cissa_instance = Cissa(t=t_test, x=x_test_initial, use_32_bit=True)
+    # At this point, cissa_instance.x is [np.float32(1.0), "cannot_convert", np.float32(3.0)] with dtype=object
 
     expected_error_msg = "All elements in the input array 'x' must be numeric or convertible to numeric type before fitting. Please check for non-numeric values."
     with pytest.raises(ValueError, match=expected_error_msg):
         cissa_instance.fit(L=2)
 
+
 def test_pre_fill_gaps_use_32_bit_true():
     """
     Test pre_fill_gaps with use_32_bit=True ensures self.x becomes float32.
     """
-    t_val = np.arange(5, dtype=np.float64) # Ensure t is also float for consistency if it matters
-    # Initial x is float64, Cissa init with use_32_bit=True will convert it to float32
+    t_val = np.arange(5, dtype=np.float64)
     x_val = np.array([1.0, 2.0, np.nan, 4.0, np.nan], dtype=np.float64)
 
     cissa_instance = Cissa(t=t_val, x=x_val, use_32_bit=True)
-    # After Cissa init, if x_val was purely numeric, it should already be float32
-    # If x_val had NaNs that made it object type, initial_data_checks handles it.
-    # Let's confirm initial state of cissa_instance.x
-    if cissa_instance.x.dtype == object: # If NaNs made it object
-        # Check that numeric parts are float32
-        assert isinstance(cissa_instance.x[0], np.float32)
-    else: # If it became float32 directly (e.g. if np.nan can exist in a float32 array)
-        assert cissa_instance.x.dtype == np.float32
+    # After Cissa init, x_val (which contains NaNs) should be float32 if possible, or object.
+    # np.array([1.0, np.nan], dtype=np.float64).astype(np.float32) is valid and results in a float32 array with NaNs.
+    # So, initial_data_checks (when use_32_bit=True) should convert a float64 array with NaNs to float32 array with NaNs.
+    assert cissa_instance.x.dtype == np.float32
 
-    # Call pre_fill_gaps, simplifying parameters
-    # L must be > 1 and typically <= N/2. For N=5, L=2 is fine.
-    # Using component_selection_method='drop_smallest_n' to avoid Monte Carlo.
-    # estimate_error=False to avoid extra loops/file reads if any.
-    cissa_instance.pre_fill_gaps(L=2, estimate_error=False, component_selection_method='drop_smallest_n', test_repeats=0)
+    cissa_instance.pre_fill_gaps(L=2, estimate_error=False, component_selection_method='drop_smallest_n', test_repeats=0, verbose=False)
 
     assert cissa_instance.x.dtype == np.float32, "cissa_instance.x should be float32 after pre_fill_gaps with use_32_bit=True"
     assert not np.isnan(cissa_instance.x).any(), "NaNs should be filled in cissa_instance.x"
+
 
 def test_pre_fill_gaps_use_32_bit_false():
     """
@@ -222,23 +373,23 @@ def test_pre_fill_gaps_use_32_bit_false():
     x_val = np.array([1.0, 2.0, np.nan, 4.0, np.nan], dtype=np.float64)
 
     cissa_instance = Cissa(t=t_val, x=x_val, use_32_bit=False)
-    # With use_32_bit=False, x should remain float64 or become object if it had mixed types not convertible initially.
-    # For np.array([1.0, np.nan], dtype=np.float64), dtype is float64.
     assert cissa_instance.x.dtype == np.float64
 
-    cissa_instance.pre_fill_gaps(L=2, estimate_error=False, component_selection_method='drop_smallest_n', test_repeats=0)
+    cissa_instance.pre_fill_gaps(L=2, estimate_error=False, component_selection_method='drop_smallest_n', test_repeats=0, verbose=False)
 
     assert cissa_instance.x.dtype == np.float64, "cissa_instance.x should be float64 after pre_fill_gaps with use_32_bit=False"
     assert not np.isnan(cissa_instance.x).any(), "NaNs should be filled in cissa_instance.x"
+
 
 def test_fit_raises_error_on_non_numeric_when_use_32_bit_false():
     """
     Test that fit() raises ValueError if x contains non-numeric data when use_32_bit=False.
     """
-    t_test = np.array([1, 2, 3, 4])
+    t_test = np.array([1, 2, 3]) # Adjusted length
     x_test_initial = np.array([1.0, "still_cannot_convert", 3.0], dtype=object)
 
     cissa_instance = Cissa(t=t_test, x=x_test_initial, use_32_bit=False)
+    # With use_32_bit=False, cissa_instance.x will be the object array.
 
     expected_error_msg = "All elements in the input array 'x' must be numeric or convertible to numeric type before fitting. Please check for non-numeric values."
     with pytest.raises(ValueError, match=expected_error_msg):

@@ -72,6 +72,20 @@ def initial_data_checks(t: np.ndarray, x: np.ndarray, use_32_bit: bool):
             t = t.reshape(len(t),)
         except:
             raise ValueError(f'Input "t" should be a column vector (i.e. only contain a single column). The size of t is ({myshape})')
+
+    # Type Check for t
+    unique_types = set(type(item) for item in t)
+    if len(unique_types) > 1:
+        is_all_numeric = all(issubclass(typ, (int, float, np.integer, np.floating)) for typ in unique_types)
+        if not is_all_numeric:
+            raise TypeError(f"Time vector t contains mixed data types: {list(unique_types)}")
+
+    # Order Check for t
+    is_numeric = all(isinstance(item, (int, float, np.integer, np.floating)) for item in t)
+    if is_numeric and len(t) > 1:
+        for i in range(len(t) - 1):
+            if t[i+1] < t[i]:
+                raise ValueError(f"Time vector t is not sorted in ascending order. Element {t[i+1]} at index {i+1} is less than preceding element {t[i]} at index {i}.")
     return t,x
 
 
