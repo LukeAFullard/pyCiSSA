@@ -11,8 +11,12 @@ st.set_page_config(
 with open("assets/style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
+# Sidebar
+with st.sidebar:
+    st.image("assets/pycissa.jpg", width=150)
+    st.title("pycissa")
+
 # App header
-st.image("assets/pycissa.jpg", width=150)
 st.title("pycissa: Time Series Analysis with CISSA")
 
 # Main content
