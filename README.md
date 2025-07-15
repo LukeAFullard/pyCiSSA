@@ -1,3 +1,6 @@
+![pycissa](assets/pycissa.jpg)
+*Image created with Grok from X.ai*
+
 # pycissa: Time Series Analysis with CISSA
 
 `pycissa` is a Python library for performing time series analysis, primarily utilizing **Circulant Singular Spectrum Analysis (CISSA)**.
