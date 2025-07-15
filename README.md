@@ -1,4 +1,5 @@
 ![pycissa](assets/pycissa.jpg)
+*Image created with Grok from X.ai*
 
 # pycissa: Time Series Analysis with CISSA
 
