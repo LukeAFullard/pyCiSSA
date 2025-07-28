@@ -20,4 +20,13 @@ with st.sidebar:
 st.title("pycissa: Time Series Analysis with CISSA")
 
 # Main content
-st.write("Welcome to the pycissa web app! This is the main page.")
+tab1, tab2, tab3 = st.tabs(["Description", "Load Data", "Run CISSA"])
+
+with tab1:
+    st.write("Welcome to the pycissa web app! This is the main page.")
+
+with tab2:
+    from pages import data_upload
+
+with tab3:
+    st.write("This is where you will run CISSA.")
